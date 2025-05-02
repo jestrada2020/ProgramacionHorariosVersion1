@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Generación de Horarios Académicos</title>
+    <!-- Tailwind CSS desde jsdelivr -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- SheetJS para procesar archivos Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9fafb;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        .session {
+            background-color: #e3f2fd;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            cursor: move;
+            border-left: 4px solid #2563eb;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .session:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            z-index: 2;
+        }
+        
+        .conflict {
+            background-color: #ffecb3;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .optimized {
+            background-color: #c8e6c9;
+            border-left: 4px solid #10b981;
+        }
+        
+        .timetable th, .timetable td {
+            border: 1px solid #e5e7eb;
+            padding: 0.5rem;
+            text-align: center;
+        }
+        
+        .timetable th {
+            background-color: #f3f4f6;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transform: translateY(100%);
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="loading" id="loadingScreen">
+        <div class="spinner"></div>
+        <div class="text-white mt-4 font-medium">Procesando datos...</div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Cabecera -->
+        <header class="bg-blue-600 text-white p-4 rounded-lg shadow-md mb-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Sistema de Generación de Horarios Académicos</h1>
+            <div class="flex space-x-2">
+                <button id="importBtn" class="bg-white text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-lg shadow transition-colors font-medium">Importar Datos</button>
+                <button id="exportBtn" class="bg-white text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-lg shadow transition-colors font-medium">Exportar Horarios</button>
+            </div>
+        </header>
+
+        <!-- Navegación por pestañas -->
+        <nav class="bg-gray-800 rounded-lg shadow-md mb-6 overflow-x-auto">
+            <ul class="flex flex-wrap">
+                <li><a href="#configuracion" class="tab-link active px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Configuración</a></li>
+                <li><a href="#profesores" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Profesores</a></li>
+                <li><a href="#materias" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Materias</a></li>
+                <li><a href="#aulas" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Aulas</a></li>
+                <li><a href="#restricciones" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Restricciones</a></li>
+                <li><a href="#horarios" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Horarios</a></li>
+            </ul>
+        </nav>
+
+        <!-- Pestaña de Configuración -->
+        <div id="configuracion" class="tab-content active">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">Configuración General</h2>
+                    <button id="saveConfigBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors">Guardar Configuración</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label for="periodoAcademico" class="block text-gray-700 font-medium mb-2">Periodo Académico:</label>
+                        <select id="periodoAcademico" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="semestral">Semestral</option>
+                            <option value="anual">Anual</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="cantidadSemestres" class="block text-gray-700 font-medium mb-2">Cantidad de Semestres/Niveles:</label>
+                        <select id="cantidadSemestres" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="horaInicio" class="block text-gray-700 font-medium mb-2">Hora de Inicio de Jornada:</label>
+                        <input type="time" id="horaInicio" value="07:00" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="horaFin" class="block text-gray-700 font-medium mb-2">Hora de Fin de Jornada:</label>
+                        <input type="time" id="horaFin" value="18:00" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="duracionBloque" class="block text-gray-700 font-medium mb-2">Duración de Bloque (minutos):</label>
+                        <input type="number" id="duracionBloque" min="30" max="120" step="15" value="60" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <label class="block text-gray-700 font-medium mb-2">Días de la Semana:</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                        <div class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                            <input type="checkbox" id="diaLunes" checked class="mr-2">
+                            <label for="diaLunes">Lunes</label>
+                        </div>
+                        <div class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                            <input type="checkbox" id="diaMartes" checked class="mr-2">
+                            <label for="diaMartes">Martes</label>
+                        </div>
+                        <div class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                            <input type="checkbox" id="diaMiercoles" checked class="mr-2">
+                            <label for="diaMiercoles">Miércoles</label>
+                        </div>
+                        <div class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                            <input type="checkbox" id="diaJueves" checked class="mr-2">
+                            <label for="diaJueves">Jueves</label>
+                        </div>
+                        <div class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                            <input type="checkbox" id="diaViernes" checked class="mr-2">
+                            <label for="diaViernes">Viernes</label>
+                        </div>
+                        <div class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                            <input type="checkbox" id="diaSabado" class="mr-2">
+                            <label for="diaSabado">Sábado</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="border-b pb-3 mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Opciones de Optimización</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="prioridadOptimizacion" class="block text-gray-700 font-medium mb-2">Prioridad de Optimización:</label>
+                        <select id="prioridadOptimizacion" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="estudiantes">Priorizar Estudiantes (Evitar Huecos)</option>
+                            <option value="profesores">Priorizar Profesores (Respetar Preferencias)</option>
+                            <option value="aulas">Priorizar Aulas (Optimizar Uso)</option>
+                            <option value="equilibrado">Equilibrado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="maxIteraciones" class="block text-gray-700 font-medium mb-2">Máximo de Iteraciones:</label>
+                        <input type="number" id="maxIteraciones" min="100" max="10000" step="100" value="1000" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="tiempoMaximo" class="block text-gray-700 font-medium mb-2">Tiempo Máximo (segundos):</label>
+                        <input type="number" id="tiempoMaximo" min="10" max="300" step="5" value="60" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Datos Excel</h2>
+                <div class="mb-4">
+                    <p class="text-gray-700 mb-3">Carga el archivo Excel con los datos para la generación de horarios:</p>
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="block w-full text-sm text-gray-500 
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-medium
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100">
+                    <p class="text-sm text-gray-500 mt-1">Archivos permitidos: .xlsx, .xls</p>
+                </div>
+                <div class="mt-4">
+                    <button id="cargarDatosExcel" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors">Cargar Datos desde Excel</button>
+                    <button id="cargarDatosEjemplo" class="ml-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors">Cargar Datos de Ejemplo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña de Profesores -->
+        <div id="profesores" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">Gestión de Profesores</h2>
+                    <button id="addProfesorBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors">Añadir Profesor</button>
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
+                    <p>Registre los profesores y su disponibilidad según su modalidad de contratación.</p>
+                </div>
+                <div class="mb-4">
+                    <input type="text" id="buscarProfesor" placeholder="Buscar profesor..." class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="overflow-x-auto">
+                    <table id="tablaProfesores" class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Código</th>
+                                <th class="py-3 px-6 text-left">Nombre</th>
+                                <th class="py-3 px-6 text-left">Especialidad</th>
+                                <th class="py-3 px-6 text-left">Disponibilidad</th>
+                                <th class="py-3 px-6 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-600 text-sm font-light">
+                            <tr>
+                                <td colspan="5" class="py-4 px-6 text-center">No hay datos. Cargue datos desde Excel o añada profesores manualmente.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña de Materias -->
+        <div id="materias" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">Gestión de Materias</h2>
+                    <button id="addMateriaBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors">Añadir Materia</button>
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
+                    <p>Registre las materias, indicando el semestre al que pertenecen y sus características.</p>
+                </div>
+                <div class="mb-4">
+                    <input type="text" id="buscarMateria" placeholder="Buscar materia..." class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="overflow-x-auto">
+                    <table id="tablaMaterias" class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Código</th>
+                                <th class="py-3 px-6 text-left">Nombre</th>
+                                <th class="py-3 px-6 text-left">Semestre</th>
+                                <th class="py-3 px-6 text-left">Horas</th>
+                                <th class="py-3 px-6 text-left">Tipo de Aula</th>
+                                <th class="py-3 px-6 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-600 text-sm font-light">
+                            <tr>
+                                <td colspan="6" class="py-4 px-6 text-center">No hay datos. Cargue datos desde Excel o añada materias manualmente.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña de Aulas -->
+        <div id="aulas" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">Gestión de Aulas</h2>
+                    <button id="addAulaBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors">Añadir Aula</button>
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
+                    <p>Registre las aulas disponibles, su capacidad y características para la asignación de clases.</p>
+                </div>
+                <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <input type="text" id="buscarAula" placeholder="Buscar aula..." class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <select id="filtroTipoAula" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="todos">Todos los tipos</option>
+                            <option value="normal">Normal</option>
+                            <option value="laboratorio">Laboratorio</option>
+                            <option value="informatica">Informática</option>
+                            <option value="auditorio">Auditorio</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table id="tablaAulas" class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Código</th>
+                                <th class="py-3 px-6 text-left">Nombre</th>
+                                <th class="py-3 px-6 text-left">Tipo</th>
+                                <th class="py-3 px-6 text-left">Capacidad</th>
+                                <th class="py-3 px-6 text-left">Ubicación</th>
+                                <th class="py-3 px-6 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-600 text-sm font-light">
+                            <tr>
+                                <td colspan="6" class="py-4 px-6 text-center">No hay datos. Cargue datos desde Excel o añada aulas manualmente.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña de Restricciones -->
+        <div id="restricciones" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">Restricciones y Preferencias</h2>
+                    <button id="guardarRestricciones" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors">Guardar Restricciones</button>
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-6">
+                    <p>Configure las restricciones para la generación de horarios. Las restricciones marcadas como "Estricta" deben cumplirse obligatoriamente, mientras que las "Ponderables" se intentarán satisfacer según su peso.</p>
+                </div>
+
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Restricciones Globales</h3>
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <div class="border-b border-gray-200 pb-4 mb-4">
+                        <div class="flex flex-wrap justify-between items-start">
+                            <div class="w-full md:w-2/3 mb-3 md:mb-0">
+                                <div class="font-medium">Evitar huecos en horarios de estudiantes</div>
+                                <p class="text-sm text-gray-600">Los estudiantes no deberían tener horas libres entre clases</p>
+                            </div>
+                            <div class="w-full md:w-1/3 flex items-center md:justify-end space-x-2">
+                                <select class="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="ponderable">Ponderable</option>
+                                    <option value="estricta">Estricta</option>
+                                </select>
+                                <input type="number" min="1" max="10" value="8" class="w-16 px-2 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-b border-gray-200 pb-4 mb-4">
+                        <div class="flex flex-wrap justify-between items-start">
+                            <div class="w-full md:w-2/3 mb-3 md:mb-0">
+                                <div class="font-medium">Respetar disponibilidad de profesores</div>
+                                <p class="text-sm text-gray-600">Las clases deben asignarse en horarios donde el profesor esté disponible</p>
+                            </div>
+                            <div class="w-full md:w-1/3 flex items-center md:justify-end space-x-2">
+                                <select class="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="estricta" selected>Estricta</option>
+                                    <option value="ponderable">Ponderable</option>
+                                </select>
+                                <input type="number" min="1" max="10" value="10" class="w-16 px-2 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-b border-gray-200 pb-4 mb-4">
+                        <div class="flex flex-wrap justify-between items-start">
+                            <div class="w-full md:w-2/3 mb-3 md:mb-0">
+                                <div class="font-medium">Respetar tipo de aula requerido</div>
+                                <p class="text-sm text-gray-600">Asignar las materias a aulas de tipo adecuado</p>
+                            </div>
+                            <div class="w-full md:w-1/3 flex items-center md:justify-end space-x-2">
+                                <select class="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="estricta" selected>Estricta</option>
+                                    <option value="ponderable">Ponderable</option>
+                                </select>
+                                <input type="number" min="1" max="10" value="10" class="w-16 px-2 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Restricciones de Profesores</h3>
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <div class="border-b border-gray-200 pb-4 mb-4">
+                        <div class="flex flex-wrap justify-between items-start">
+                            <div class="w-full md:w-2/3 mb-3 md:mb-0">
+                                <div class="font-medium">Máximo de horas consecutivas</div>
+                                <p class="text-sm text-gray-600">Limitar el número de horas de clase consecutivas para profesores</p>
+                            </div>
+                            <div class="w-full md:w-1/3 flex items-center md:justify-end space-x-2">
+                                <select class="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="ponderable">Ponderable</option>
+                                    <option value="estricta">Estricta</option>
+                                </select>
+                                <input type="number" min="1" max="10" value="8" class="w-16 px-2 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña de Horarios -->
+        <div id="horarios" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">Generación de Horarios</h2>
+                    <div>
+                        <button id="generarHorariosBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors">Generar Horarios</button>
+                        <button id="optimizarHorariosBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors ml-2">Optimizar</button>
+                    </div>
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
+                    <p>Genere y visualice los horarios. Puede editar manualmente arrastrando las sesiones o utilizar la optimización automática.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label for="filtroVistaHorario" class="block text-gray-700 font-medium mb-2">Ver horario de:</label>
+                        <select id="filtroVistaHorario" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="semestre">Por Semestre</option>
+                            <option value="profesor">Por Profesor</option>
+                            <option value="aula">Por Aula</option>
+                        </select>
+                    </div>
+
+                    <div id="selectorElemento">
+                        <label for="elementoSeleccionado" class="block text-gray-700 font-medium mb-2">Seleccione semestre:</label>
+                        <select id="elementoSeleccionado" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1">Semestre 1</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="datosEstadisticos" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white border rounded-lg p-4 shadow-sm">
+                        <h4 class="font-medium text-gray-600 mb-1">Materias asignadas</h4>
+                        <p id="materiasAsignadas" class="text-xl font-bold text-blue-600">0/0 (0%)</p>
+                    </div>
+                    <div class="bg-white border rounded-lg p-4 shadow-sm">
+                        <h4 class="font-medium text-gray-600 mb-1">Aulas utilizadas</h4>
+                        <p id="aulasUtilizadas" class="text-xl font-bold text-green-600">0/0 (0%)</p>
+                    </div>
+                    <div class="bg-white border rounded-lg p-4 shadow-sm">
+                        <h4 class="font-medium text-gray-600 mb-1">Conflictos detectados</h4>
+                        <p id="conflictosDetectados" class="text-xl font-bold text-orange-600">0</p>
+                    </div>
+                </div>
+
+                <div id="horarioContainer" class="overflow-x-auto">
+                    <div id="mensajeNoHorario" class="py-12 text-center">
+                        <div class="text-4xl text-gray-300 mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-medium text-gray-500">No hay horarios generados</h3>
+                        <p class="text-gray-500 mt-2 mb-4">Cargue datos desde Excel y haga clic en "Generar Horarios" para comenzar</p>
+                        <button id="generarHorariosBtnAlt" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors">Generar Horarios</button>
+                    </div>
+                    <table id="tablaHorario" class="timetable w-full border-collapse hidden">
+                        <!-- El horario se generará dinámicamente -->
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification bg-white text-gray-800 hidden">
+        <div class="font-bold" id="notificationTitle">Título de notificación</div>
+        <div id="notificationMessage">Mensaje de notificación</div>
+    </div>
+
+    <!-- Modales -->
+    <div id="modalProfesor" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 md:w-2/3 lg:w-1/2 max-h-90vh overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4">Datos del Profesor</h2>
+            <div class="mb-4">
+                <label for="profesorCodigo" class="block text-gray-700 font-medium mb-2">Código:</label>
+                <input type="text" id="profesorCodigo" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-4">
+                <label for="profesorNombre" class="block text-gray-700 font-medium mb-2">Nombre:</label>
+                <input type="text" id="profesorNombre" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-4">
+                <label for="profesorEspecialidad" class="block text-gray-700 font-medium mb-2">Especialidad:</label>
+                <input type="text" id="profesorEspecialidad" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button id="cancelarProfesorBtn" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md mr-2">Cancelar</button>
+                <button id="guardarProfesorBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Estado global de la aplicación
+        const estado = {
+            profesores: [],
+            materias: [],
+            aulas: [],
+            estudiantes: [],
+            restricciones: [],
+            horarios: {},
+            configuracion: {
+                periodoAcademico: "semestral",
+                cantidadSemestres: 4,
+                horaInicio: "07:00",
+                horaFin: "18:00",
+                duracionBloque: 60,
+                diasDisponibles: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+            }
+        };
+
+        // Inicialización de la aplicación
+        document.addEventListener('DOMContentLoaded', () => {
+            // Cargar datos almacenados en localStorage
+            cargarDatosGuardados();
+            
+            // Configurar navegación por pestañas
+            setupTabs();
+            
+            // Configurar botones y eventos
+            setupEventListeners();
+            
+            // Renderizar datos iniciales
+            renderizarProfesores();
+            renderizarMaterias();
+            renderizarAulas();
+            
+            // Actualizar interfaz basada en datos cargados
+            actualizarInterfaz();
+        });
+
+        // Gestión de pestañas
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab-link');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // Desactivar todas las pestañas
+                    tabs.forEach(t => t.classList.remove('bg-blue-600'));
+                    // Activar pestaña actual
+                    e.target.classList.add('bg-blue-600');
+                    
+                    // Ocultar todos los contenidos
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Mostrar contenido correspondiente
+                    const targetId = e.target.getAttribute('href').substring(1);
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+        }
+
+        // Configurar eventos de la aplicación
+        function setupEventListeners() {
+            // Evento para importar datos desde Excel
+            document.getElementById('cargarDatosExcel').addEventListener('click', cargarDatosDesdeExcel);
+            
+            // Eventos para botones de generación de horarios
+            document.getElementById('generarHorariosBtn').addEventListener('click', generarHorarios);
+            document.getElementById('generarHorariosBtnAlt').addEventListener('click', generarHorarios);
+            document.getElementById('optimizarHorariosBtn').addEventListener('click', optimizarHorarios);
+            
+            // Eventos para selección de filtros en horarios
+            document.getElementById('filtroVistaHorario').addEventListener('change', cambiarVistaHorario);
+            document.getElementById('elementoSeleccionado').addEventListener('change', actualizarHorarioVisible);
+            
+            // Eventos para gestión de profesores, materias y aulas
+            document.getElementById('addProfesorBtn').addEventListener('click', () => mostrarModalProfesor());
+            document.getElementById('guardarProfesorBtn').addEventListener('click', guardarProfesor);
+            document.getElementById('cancelarProfesorBtn').addEventListener('click', () => document.getElementById('modalProfesor').classList.add('hidden'));
+            
+            document.getElementById('addMateriaBtn').addEventListener('click', () => alert('Funcionalidad en desarrollo: Añadir materia'));
+            document.getElementById('addAulaBtn').addEventListener('click', () => alert('Funcionalidad en desarrollo: Añadir aula'));
+            
+            // Eventos para guardar configuración
+            document.getElementById('saveConfigBtn').addEventListener('click', guardarConfiguracion);
+            document.getElementById('guardarRestricciones').addEventListener('click', guardarRestricciones);
+            
+            // Eventos para el filtro de búsqueda
+            document.getElementById('buscarProfesor').addEventListener('input', () => filtrarTabla('tablaProfesores', 'buscarProfesor', 1));
+            document.getElementById('buscarMateria').addEventListener('input', () => filtrarTabla('tablaMaterias', 'buscarMateria', 1));
+            document.getElementById('buscarAula').addEventListener('input', () => filtrarTabla('tablaAulas', 'buscarAula', 1));
+            
+            // Eventos para importar/exportar datos
+            document.getElementById('importBtn').addEventListener('click', () => document.getElementById('excelFileInput').click());
+            document.getElementById('exportBtn').addEventListener('click', exportarHorarios);
+            document.getElementById('excelFileInput').addEventListener('change', () => {
+                if (document.getElementById('excelFileInput').files.length > 0) {
+                    cargarDatosDesdeExcel();
+                }
+            });
+            
+            // Eventos para cargar datos de ejemplo
+            document.getElementById('cargarDatosEjemplo').addEventListener('click', cargarDatosEjemplo);
+        }
+
+        // Cargar y procesar datos desde archivo Excel
+        function cargarDatosDesdeExcel() {
+            const fileInput = document.getElementById('excelFileInput');
+            if (fileInput.files.length === 0) {
+                mostrarNotificacion('Error', 'Por favor seleccione un archivo Excel', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            mostrarCargando(true);
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // Procesar cada hoja del Excel
+                    procesarDatosExcel(workbook);
+
+                    // Almacenar datos procesados
+                    guardarDatosLocalmente();
+
+                    // Actualizar interfaz
+                    renderizarProfesores();
+                    renderizarMaterias();
+                    renderizarAulas();
+                    actualizarInterfaz();
+
+                    mostrarNotificacion('Éxito', 'Datos cargados correctamente desde Excel', 'success');
+                } catch (error) {
+                    console.error('Error al procesar el archivo Excel:', error);
+                    mostrarNotificacion('Error', 'No se pudo procesar el archivo Excel', 'error');
+                } finally {
+                    mostrarCargando(false);
+                }
+            };
+
+            reader.onerror = function() {
+                mostrarCargando(false);
+                mostrarNotificacion('Error', 'Error al leer el archivo', 'error');
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Procesar datos del archivo Excel
+        function procesarDatosExcel(workbook) {
+            // Limpiar datos actuales
+            estado.profesores = [];
+            estado.materias = [];
+            estado.aulas = [];
+        
+            // Obtener nombres de las hojas
+            const sheetNames = workbook.SheetNames;
+        
+            // --- HOJA 1: PROFESORES ---
+            if (sheetNames.length >= 1) {
+                const wsProfesores = workbook.Sheets[sheetNames[0]];
+                const dataProfesores = XLSX.utils.sheet_to_json(wsProfesores, { header: 1 });
+                if (dataProfesores && dataProfesores.length > 1) {
+                    for (let i = 1; i < dataProfesores.length; i++) {
+                        const row = dataProfesores[i];
+                        if (!row[0] || !row[1]) continue;
+                        estado.profesores.push({
+                            id: row[0],
+                            codigo: row[0],
+                            nombre: row[1],
+                            especialidad: row[2] || "No especificada",
+                            disponibilidad: row[3] || "Completa"
+                        });
+                    }
+                }
+            }
+        
+            // --- HOJA 2: MATERIAS ---
+            if (sheetNames.length >= 2) {
+                const wsMaterias = workbook.Sheets[sheetNames[1]];
+                const dataMaterias = XLSX.utils.sheet_to_json(wsMaterias, { header: 1 });
+                if (dataMaterias && dataMaterias.length > 1) {
+                    for (let i = 1; i < dataMaterias.length; i++) {
+                        const row = dataMaterias[i];
+                        if (!row[0] || !row[1]) continue;
+                        estado.materias.push({
+                            id: row[0],
+                            codigo: row[0],
+                            nombre: row[1],
+                            semestre: row[2] || "",
+                            horasSemana: row[3] || "",
+                            tipoAula: row[4] || "normal"
+                        });
+                    }
+                }
+            }
+        
+            // --- HOJA 3: AULAS ---
+            if (sheetNames.length >= 3) {
+                const wsAulas = workbook.Sheets[sheetNames[2]];
+                const dataAulas = XLSX.utils.sheet_to_json(wsAulas, { header: 1 });
+                if (dataAulas && dataAulas.length > 1) {
+                    for (let i = 1; i < dataAulas.length; i++) {
+                        const row = dataAulas[i];
+                        if (!row[0] || !row[1]) continue;
+                        estado.aulas.push({
+                            id: row[0],
+                            codigo: row[0],
+                            nombre: row[1],
+                            tipo: row[2] || "normal",
+                            capacidad: row[3] || "",
+                            ubicacion: row[4] || ""
+                        });
+                    }
+                }
+            }
+        }
+
+        // Procesar datos de profesores desde Excel
+        function procesarProfesores(jsonData, headers) {
+            // Identificar índices de columnas
+            const codigoIdx = headers.findIndex(h => h === 'Código');
+            const nombreIdx = headers.findIndex(h => h === 'Nombre');
+            
+            // Saltar si no se encuentran las columnas esenciales
+            if (codigoIdx === -1 || nombreIdx === -1) return;
+            
+            // Procesar filas de datos (omitir encabezados)
+            for (let i = 1; i < jsonData.length; i++) {
+                const row = jsonData[i];
+                if (row && row.length > Math.max(codigoIdx, nombreIdx)) {
+                    const codigo = row[codigoIdx];
+                    const nombre = row[nombreIdx];
+                    
+                    if (codigo && nombre) {
+                        estado.profesores.push({
+                            id: codigo,
+                            codigo: codigo,
+                            nombre: nombre,
+                            especialidad: 'No especificada',
+                            disponibilidad: {
+                                Lunes: [true, true, true, true, true, true, true, true, true, true, true],
+                                Martes: [true, true, true, true, true, true, true, true, true, true, true],
+                                Miércoles: [true, true, true, true, true, true, true, true, true, true, true],
+                                Jueves: [true, true, true, true, true, true, true, true, true, true, true],
+                                Viernes: [true, true, true, true, true, true, true, true, true, true, true],
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        // Procesar datos de materias desde Excel
+        function procesarMaterias(jsonData, headers) {
+            // Aquí iría el código para procesar materias
+            // Por ahora generaremos datos de ejemplo
+            const materiasEjemplo = [
+                { id: 'MAT001', codigo: 'MAT001', nombre: 'Matemáticas I', semestre: 1, horasSemana: 4, tipoAula: 'normal' },
+                { id: 'FIS001', codigo: 'FIS001', nombre: 'Física I', semestre: 1, horasSemana: 3, tipoAula: 'laboratorio' },
+                { id: 'PROG001', codigo: 'PROG001', nombre: 'Programación', semestre: 1, horasSemana: 4, tipoAula: 'informatica' },
+                { id: 'MAT002', codigo: 'MAT002', nombre: 'Matemáticas II', semestre: 2, horasSemana: 4, tipoAula: 'normal' },
+            ];
+            
+            estado.materias = materiasEjemplo;
+        }
+
+        // Procesar datos de aulas desde Excel
+        function procesarAulas(jsonData, headers) {
+            // Aquí iría el código para procesar aulas
+            // Por ahora generaremos datos de ejemplo
+            const aulasEjemplo = [
+                { id: 'A101', codigo: 'A101', nombre: 'Aula 101', tipo: 'normal', capacidad: 30, ubicacion: 'Edificio A' },
+                { id: 'A102', codigo: 'A102', nombre: 'Aula 102', tipo: 'normal', capacidad: 25, ubicacion: 'Edificio A' },
+                { id: 'LAB01', codigo: 'LAB01', nombre: 'Laboratorio 1', tipo: 'laboratorio', capacidad: 20, ubicacion: 'Edificio B' },
+                { id: 'INFO01', codigo: 'INFO01', nombre: 'Sala Informática 1', tipo: 'informatica', capacidad: 15, ubicacion: 'Edificio C' },
+            ];
+            
+            estado.aulas = aulasEjemplo;
+        }
+
+        // Renderizar tabla de profesores
+        function renderizarProfesores() {
+            const tabla = document.getElementById('tablaProfesores');
+            const tbody = tabla.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            if (estado.profesores.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="5" class="py-4 px-6 text-center">No hay datos. Cargue datos desde Excel o añada profesores manualmente.</td>`;
+                tbody.appendChild(row);
+                return;
+            }
+            
+            estado.profesores.forEach(profesor => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="py-3 px-6">${profesor.codigo || ''}</td>
+                    <td class="py-3 px-6">${profesor.nombre || ''}</td>
+                    <td class="py-3 px-6">${profesor.especialidad || 'No especificada'}</td>
+                    <td class="py-3 px-6">Completa</td>
+                    <td class="py-3 px-6 text-center">
+                        <button class="bg-blue-500 hover:bg-blue-700 text-white p-1 rounded mr-1" onclick="editarProfesor('${profesor.id}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                        </button>
+                        <button class="bg-red-500 hover:bg-red-700 text-white p-1 rounded" onclick="eliminarProfesor('${profesor.id}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Renderizar tabla de materias
+        function renderizarMaterias() {
+            const tabla = document.getElementById('tablaMaterias');
+            const tbody = tabla.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            if (estado.materias.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="6" class="py-4 px-6 text-center">No hay datos. Cargue datos desde Excel o añada materias manualmente.</td>`;
+                tbody.appendChild(row);
+                return;
+            }
+            
+            estado.materias.forEach(materia => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="py-3 px-6">${materia.codigo || ''}</td>
+                    <td class="py-3 px-6">${materia.nombre || ''}</td>
+                    <td class="py-3 px-6">${materia.semestre || 'No especificado'}</td>
+                    <td class="py-3 px-6">${materia.horasSemana || 0}</td>
+                    <td class="py-3 px-6">${materia.tipoAula || 'normal'}</td>
+                    <td class="py-3 px-6 text-center">
+                        <button class="bg-blue-500 hover:bg-blue-700 text-white p-1 rounded mr-1" onclick="editarMateria('${materia.id}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                        </button>
+                        <button class="bg-red-500 hover:bg-red-700 text-white p-1 rounded" onclick="eliminarMateria('${materia.id}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Renderizar tabla de aulas
+        function renderizarAulas() {
+            const tabla = document.getElementById('tablaAulas');
+            const tbody = tabla.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            if (estado.aulas.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="6" class="py-4 px-6 text-center">No hay datos. Cargue datos desde Excel o añada aulas manualmente.</td>`;
+                tbody.appendChild(row);
+                return;
+            }
+            
+            estado.aulas.forEach(aula => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="py-3 px-6">${aula.codigo || ''}</td>
+                    <td class="py-3 px-6">${aula.nombre || ''}</td>
+                    <td class="py-3 px-6">${aula.tipo || 'normal'}</td>
+                    <td class="py-3 px-6">${aula.capacidad || 0}</td>
+                    <td class="py-3 px-6">${aula.ubicacion || 'No especificada'}</td>
+                    <td class="py-3 px-6 text-center">
+                        <button class="bg-blue-500 hover:bg-blue-700 text-white p-1 rounded mr-1" onclick="editarAula('${aula.id}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                        </button>
+                        <button class="bg-red-500 hover:bg-red-700 text-white p-1 rounded" onclick="eliminarAula('${aula.id}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Actualizar elementos visuales de la interfaz
+        function actualizarInterfaz() {
+            // Actualizar conteo en pestañas
+            const cantidadProfesores = estado.profesores.length;
+            const cantidadMaterias = estado.materias.length;
+            const cantidadAulas = estado.aulas.length;
+            
+            // Actualizar selector de semestres
+            const cantidadSemestres = parseInt(estado.configuracion.cantidadSemestres) || 4;
+            const selectorSemestres = document.getElementById('elementoSeleccionado');
+            selectorSemestres.innerHTML = '';
+            for (let i = 1; i <= cantidadSemestres; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `Semestre ${i}`;
+                selectorSemestres.appendChild(option);
+            }
+            
+            // Actualizar selector de filtro de vista de horario
+            const filtroVistaHorario = document.getElementById('filtroVistaHorario');
+            filtroVistaHorario.onchange = cambiarVistaHorario;
+            
+            // Comprobar si hay suficientes datos para generar horarios
+            const botonGenerar = document.getElementById('generarHorariosBtn');
+            const botonGenerarAlt = document.getElementById('generarHorariosBtnAlt');
+            if (cantidadProfesores > 0 && cantidadMaterias > 0 && cantidadAulas > 0) {
+                botonGenerar.disabled = false;
+                botonGenerarAlt.disabled = false;
+                botonGenerar.textContent = "Generar Horarios";
+                botonGenerarAlt.textContent = "Generar Horarios";
+            } else {
+                botonGenerar.disabled = true;
+                botonGenerarAlt.disabled = true;
+                botonGenerar.textContent = "Datos insuficientes";
+                botonGenerarAlt.textContent = "Datos insuficientes";
+            }
+        }
+
+        // Cambiar vista del horario (por semestre, profesor, aula)
+        function cambiarVistaHorario() {
+            const filtro = document.getElementById('filtroVistaHorario').value;
+            const selectorElemento = document.getElementById('elementoSeleccionado');
+            const labelSelector = selectorElemento.previousElementSibling;
+            
+            selectorElemento.innerHTML = '';
+            
+            switch (filtro) {
+                case 'semestre':
+                    labelSelector.textContent = 'Seleccione semestre:';
+                    const cantidadSemestres = parseInt(estado.configuracion.cantidadSemestres) || 4;
+                    for (let i = 1; i <= cantidadSemestres; i++) {
+                        const option = document.createElement('option');
+                        option.value = i;
+                        option.textContent = `Semestre ${i}`;
+                        selectorElemento.appendChild(option);
+                    }
+                    break;
+                    
+                case 'profesor':
+                    labelSelector.textContent = 'Seleccione profesor:';
+                    estado.profesores.forEach(profesor => {
+                        const option = document.createElement('option');
+                        option.value = profesor.id;
+                        option.textContent = profesor.nombre;
+                        selectorElemento.appendChild(option);
+                    });
+                    break;
+                    
+                case 'aula':
+                    labelSelector.textContent = 'Seleccione aula:';
+                    estado.aulas.forEach(aula => {
+                        const option = document.createElement('option');
+                        option.value = aula.id;
+                        option.textContent = aula.nombre;
+                        selectorElemento.appendChild(option);
+                    });
+                    break;
+            }
+            
+            // Actualizar horario visible
+            actualizarHorarioVisible();
+        }
+
+        // Actualizar el horario mostrado según la selección
+        function actualizarHorarioVisible() {
+            const filtro = document.getElementById('filtroVistaHorario').value;
+            const elementoId = document.getElementById('elementoSeleccionado').value;
+            
+            // Si no hay horarios generados, no continuar
+            if (!estado.horarios || Object.keys(estado.horarios).length === 0) {
+                return;
+            }
+            
+            renderizarHorario(filtro, elementoId);
+        }
+
+        // Filtrar tabla por texto de búsqueda
+        function filtrarTabla(tablaId, inputId, columnaIdx) {
+            const tabla = document.getElementById(tablaId);
+            const input = document.getElementById(inputId);
+            const filtro = input.value.toUpperCase();
+            const filas = tabla.getElementsByTagName('tr');
+            
+            for (let i = 1; i < filas.length; i++) {
+                const celdas = filas[i].getElementsByTagName('td');
+                if (celdas.length > columnaIdx) {
+                    const texto = celdas[columnaIdx].textContent || celdas[columnaIdx].innerText;
+                    if (texto.toUpperCase().indexOf(filtro) > -1) {
+                        filas[i].style.display = '';
+                    } else {
+                        filas[i].style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        // Generar horarios académicos
+        function generarHorarios() {
+            // Validar que hay datos suficientes
+            if (estado.profesores.length === 0 || estado.materias.length === 0 || estado.aulas.length === 0) {
+                mostrarNotificacion('Error', 'No hay suficientes datos para generar horarios', 'error');
+                return;
+            }
+            
+            mostrarCargando(true);
+            
+            setTimeout(() => {
+                try {
+                    // Algoritmo simple de generación de horarios
+                    estado.horarios = {};
+                    const materiasPorSemestre = agruparMateriasPorSemestre();
+                    const diasHabiles = obtenerDiasHabiles();
+                    const horasPorDia = calcularHorasPorDia();
+                    
+                    // Para cada semestre, asignar materias a días y horas
+                    for (const semestre in materiasPorSemestre) {
+                        const materias = materiasPorSemestre[semestre];
+                        estado.horarios[semestre] = crearHorarioParaSemestre(materias, diasHabiles, horasPorDia);
+                    }
+                    
+                    // Mostrar horario generado
+                    document.getElementById('mensajeNoHorario').classList.add('hidden');
+                    document.getElementById('tablaHorario').classList.remove('hidden');
+                    
+                    // Actualizar estadísticas
+                    actualizarEstadisticasHorario();
+                    
+                    // Mostrar horario del primer semestre
+                    document.getElementById('filtroVistaHorario').value = 'semestre';
+                    document.getElementById('elementoSeleccionado').value = '1';
+                    cambiarVistaHorario();
+                    
+                    mostrarNotificacion('Éxito', 'Horarios generados correctamente', 'success');
+                } catch (error) {
+                    console.error('Error al generar horarios:', error);
+                    mostrarNotificacion('Error', 'No se pudieron generar los horarios', 'error');
+                } finally {
+                    mostrarCargando(false);
+                }
+            }, 1000); // Simular procesamiento
+        }
+
+        // Optimizar horarios generados
+        function optimizarHorarios() {
+            // Verificar si hay horarios para optimizar
+            if (!estado.horarios || Object.keys(estado.horarios).length === 0) {
+                mostrarNotificacion('Error', 'No hay horarios para optimizar', 'error');
+                return;
+            }
+            
+            mostrarCargando(true);
+            
+            setTimeout(() => {
+                try {
+                    // Lógica de optimización (simplificada para este ejemplo)
+                    // En una implementación real, aquí iría un algoritmo de optimización
+                    
+                    // Actualizar estadísticas
+                    actualizarEstadisticasHorario();
+                    
+                    // Actualizar vista del horario
+                    actualizarHorarioVisible();
+                    
+                    mostrarNotificacion('Éxito', 'Horarios optimizados correctamente', 'success');
+                } catch (error) {
+                    console.error('Error al optimizar horarios:', error);
+                    mostrarNotificacion('Error', 'Error al optimizar los horarios', 'error');
+                } finally {
+                    mostrarCargando(false);
+                }
+            }, 1500); // Simular procesamiento
+        }
+
+        // Funciones auxiliares para la generación de horarios
+        function agruparMateriasPorSemestre() {
+            const materiasPorSemestre = {};
+            
+            estado.materias.forEach(materia => {
+                const semestre = materia.semestre || 1;
+                if (!materiasPorSemestre[semestre]) {
+                    materiasPorSemestre[semestre] = [];
+                }
+                materiasPorSemestre[semestre].push(materia);
+            });
+            
+            return materiasPorSemestre;
+        }
+
+        function obtenerDiasHabiles() {
+            const dias = [];
+            if (document.getElementById('diaLunes').checked) dias.push('Lunes');
+            if (document.getElementById('diaMartes').checked) dias.push('Martes');
+            if (document.getElementById('diaMiercoles').checked) dias.push('Miércoles');
+            if (document.getElementById('diaJueves').checked) dias.push('Jueves');
+            if (document.getElementById('diaViernes').checked) dias.push('Viernes');
+            if (document.getElementById('diaSabado').checked) dias.push('Sábado');
+            return dias.length > 0 ? dias : ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+        }
+
+        function calcularHorasPorDia() {
+            const horaInicio = document.getElementById('horaInicio').value || '07:00';
+            const horaFin = document.getElementById('horaFin').value || '18:00';
+            const duracionBloque = parseInt(document.getElementById('duracionBloque').value) || 60;
+            
+            const [inicioHora, inicioMinuto] = horaInicio.split(':').map(Number);
+            const [finHora, finMinuto] = horaFin.split(':').map(Number);
+            
+            const inicioMinutos = inicioHora * 60 + inicioMinuto;
+            const finMinutos = finHora * 60 + finMinuto;
+            
+            const numBloques = Math.floor((finMinutos - inicioMinutos) / duracionBloque);
+            
+            const horas = [];
+            for (let i = 0; i < numBloques; i++) {
+                const bloqueInicioMinutos = inicioMinutos + i * duracionBloque;
+                const bloqueFinMinutos = bloqueInicioMinutos + duracionBloque;
+                
+                const bloqueInicioHora = Math.floor(bloqueInicioMinutos / 60);
+                const bloqueInicioMin = bloqueInicioMinutos % 60;
+                
+                const bloqueFinHora = Math.floor(bloqueFinMinutos / 60);
+                const bloqueFinMin = bloqueFinMinutos % 60;
+                
+                const horaFormateada = `${bloqueInicioHora.toString().padStart(2, '0')}:${bloqueInicioMin.toString().padStart(2, '0')} - ${bloqueFinHora.toString().padStart(2, '0')}:${bloqueFinMin.toString().padStart(2, '0')}`;
+                
+                horas.push(horaFormateada);
+            }
+            
+            return horas;
+        }
+
+        function crearHorarioParaSemestre(materias, diasHabiles, horasPorDia) {
+            const horario = {};
+            
+            // Inicializar estructura del horario
+            diasHabiles.forEach(dia => {
+                horario[dia] = {};
+                horasPorDia.forEach(hora => {
+                    horario[dia][hora] = null;
+                });
+            });
+            
+            // Asignar profesores a materias aleatoriamente
+            const materiasConProfesor = materias.map(materia => {
+                const profesorIdx = Math.floor(Math.random() * estado.profesores.length);
+                const aulaIdx = Math.floor(Math.random() * estado.aulas.length);
+                return {
+                    ...materia,
+                    profesor: estado.profesores[profesorIdx],
+                    aula: estado.aulas[aulaIdx],
+                    horasAsignadas: 0
+                };
+            });
+            
+            // Distribuir materias en el horario
+            materiasConProfesor.forEach(materia => {
+                let horasRestantes = materia.horasSemana || 2;
+                let intentos = 0;
+                
+                while (horasRestantes > 0 && intentos < 100) {
+                    intentos++;
+                    
+                    const diaIdx = Math.floor(Math.random() * diasHabiles.length);
+                    const dia = diasHabiles[diaIdx];
+                    
+                    const horasDisponibles = horasPorDia.filter(hora => !horario[dia][hora]);
+                    
+                    if (horasDisponibles.length > 0) {
+                        const horaIdx = Math.floor(Math.random() * horasDisponibles.length);
+                        const hora = horasDisponibles[horaIdx];
+                        
+                        horario[dia][hora] = {
+                            materia: materia.nombre,
+                            codigo: materia.codigo,
+                            profesor: materia.profesor.nombre,
+                            aula: materia.aula.nombre,
+                            info: `${materia.nombre} (${materia.profesor.nombre})`
+                        };
+                        
+                        horasRestantes--;
+                        materia.horasAsignadas++;
+                    }
+                }
+            });
+            
+            return horario;
+        }
+
+        // Renderizar tabla de horarios
+        function renderizarHorario(tipoVista, elementoId) {
+            const tabla = document.getElementById('tablaHorario');
+            const horasPorDia = calcularHorasPorDia();
+            const diasHabiles = obtenerDiasHabiles();
+            
+            // Limpiar tabla
+            tabla.innerHTML = '';
+            
+            // Crear encabezado
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            
+            // Celda vacía para esquina superior izquierda
+            const cornerCell = document.createElement('th');
+            cornerCell.className = 'border bg-gray-100';
+            headerRow.appendChild(cornerCell);
+            
+            // Encabezados de días
+            diasHabiles.forEach(dia => {
+                const th = document.createElement('th');
+                th.textContent = dia;
+                th.className = 'border bg-gray-200 font-medium';
+                headerRow.appendChild(th);
+            });
+            
+            thead.appendChild(headerRow);
+            tabla.appendChild(thead);
+            
+            // Crear cuerpo de la tabla
+            const tbody = document.createElement('tbody');
+            
+            // Determinar qué datos mostrar según el tipo de vista
+            let datosHorario;
+            
+            switch (tipoVista) {
+                case 'semestre':
+                    datosHorario = estado.horarios[elementoId] || {};
+                    break;
+                case 'profesor':
+                    datosHorario = filtrarHorarioPorProfesor(elementoId);
+                    break;
+                case 'aula':
+                    datosHorario = filtrarHorarioPorAula(elementoId);
+                    break;
+                default:
+                    datosHorario = {};
+            }
+            
+            // Crear filas para cada bloque horario
+            horasPorDia.forEach(hora => {
+                const row = document.createElement('tr');
+                
+                // Celda con la hora
+                const timeCell = document.createElement('td');
+                timeCell.textContent = hora;
+                timeCell.className = 'border bg-gray-100 font-medium text-sm';
+                row.appendChild(timeCell);
+                
+                // Celdas para cada día
+                diasHabiles.forEach(dia => {
+                    const cell = document.createElement('td');
+                    cell.className = 'border p-1 relative';
+                    
+                    const sesion = datosHorario[dia] && datosHorario[dia][hora];
+                    
+                    if (sesion) {
+                        const sessionDiv = document.createElement('div');
+                        sessionDiv.className = 'session text-sm';
+                        sessionDiv.innerHTML = `
+                            <div class="font-medium">${sesion.materia}</div>
+                            <div class="text-xs text-gray-600">${sesion.profesor}</div>
+                            <div class="text-xs text-gray-500">${sesion.aula}</div>
+                        `;
+                        cell.appendChild(sessionDiv);
+                    }
+                    
+                    row.appendChild(cell);
+                });
+                
+                tbody.appendChild(row);
+            });
+            
+            tabla.appendChild(tbody);
+            
+            // Mostrar tabla y ocultar mensaje
+            document.getElementById('mensajeNoHorario').classList.add('hidden');
+            tabla.classList.remove('hidden');
+        }
+
+        // Filtrar horario por profesor
+        function filtrarHorarioPorProfesor(profesorId) {
+            const horarioProfesor = {};
+            const profesor = estado.profesores.find(p => p.id === profesorId);
+            
+            if (!profesor) return {};
+            
+            const diasHabiles = obtenerDiasHabiles();
+            const horasPorDia = calcularHorasPorDia();
+            
+            // Inicializar estructura del horario
+            diasHabiles.forEach(dia => {
+                horarioProfesor[dia] = {};
+                horasPorDia.forEach(hora => {
+                    horarioProfesor[dia][hora] = null;
+                });
+            });
+            
+            // Buscar clases del profesor en todos los horarios
+            Object.values(estado.horarios).forEach(horarioSemestre => {
+                diasHabiles.forEach(dia => {
+                    if (horarioSemestre[dia]) {
+                        horasPorDia.forEach(hora => {
+                            const sesion = horarioSemestre[dia][hora];
+                            if (sesion && sesion.profesor === profesor.nombre) {
+                                horarioProfesor[dia][hora] = sesion;
+                            }
+                        });
+                    }
+                });
+            });
+            
+            return horarioProfesor;
+        }
+
+        // Filtrar horario por aula
+        function filtrarHorarioPorAula(aulaId) {
+            const horarioAula = {};
+            const aula = estado.aulas.find(a => a.id === aulaId);
+            
+            if (!aula) return {};
+            
+            const diasHabiles = obtenerDiasHabiles();
+            const horasPorDia = calcularHorasPorDia();
+            
+            // Inicializar estructura del horario
+            diasHabiles.forEach(dia => {
+                horarioAula[dia] = {};
+                horasPorDia.forEach(hora => {
+                    horarioAula[dia][hora] = null;
+                });
+            });
+            
+            // Buscar clases en el aula en todos los horarios
+            Object.values(estado.horarios).forEach(horarioSemestre => {
+                diasHabiles.forEach(dia => {
+                    if (horarioSemestre[dia]) {
+                        horasPorDia.forEach(hora => {
+                            const sesion = horarioSemestre[dia][hora];
+                            if (sesion && sesion.aula === aula.nombre) {
+                                horarioAula[dia][hora] = sesion;
+                            }
+                        });
+                    }
+                });
+            });
+            
+            return horarioAula;
+        }
+
+        // Actualizar estadísticas de horario
+        function actualizarEstadisticasHorario() {
+            if (!estado.horarios || Object.keys(estado.horarios).length === 0) {
+                document.getElementById('materiasAsignadas').textContent = '0/0 (0%)';
+                document.getElementById('conflictosDetectados').textContent = '0';
+                document.getElementById('aulasUtilizadas').textContent = '0/0 (0%)';
+                return;
+            }
+            
+            // Contar materias asignadas
+            let materiasAsignadas = 0;
+            let totalMaterias = estado.materias.length;
+            
+            // Contar aulas utilizadas
+            const aulasUtilizadas = new Set();
+            const totalAulas = estado.aulas.length;
+            
+            // Contar conflictos (profesores asignados a múltiples clases en mismo horario)
+            let conflictos = 0;
+            
+            // Analizar horarios
+            Object.values(estado.horarios).forEach(horario => {
+                Object.keys(horario).forEach(dia => {
+                    Object.keys(horario[dia]).forEach(hora => {
+                        const sesion = horario[dia][hora];
+                        if (sesion) {
+                            materiasAsignadas++;
+                            if (sesion.aula) aulasUtilizadas.add(sesion.aula);
+                        }
+                    });
+                });
+            });
+            
+            // Actualizar elementos en la interfaz
+            const porcentajeMaterias = totalMaterias > 0 ? Math.round((materiasAsignadas / totalMaterias) * 100) : 0;
+            const porcentajeAulas = totalAulas > 0 ? Math.round((aulasUtilizadas.size / totalAulas) * 100) : 0;
+            
+            document.getElementById('materiasAsignadas').textContent = `${materiasAsignadas}/${totalMaterias} (${porcentajeMaterias}%)`;
+            document.getElementById('conflictosDetectados').textContent = conflictos;
+            document.getElementById('aulasUtilizadas').textContent = `${aulasUtilizadas.size}/${totalAulas} (${porcentajeAulas}%)`;
+        }
+
+        // Exportar horarios a Excel
+        function exportarHorarios() {
+            if (!estado.horarios || Object.keys(estado.horarios).length === 0) {
+                mostrarNotificacion('Error', 'No hay horarios para exportar', 'error');
+                return;
+            }
+            
+            // Crear un nuevo libro de trabajo
+            const wb = XLSX.utils.book_new();
+            const diasHabiles = obtenerDiasHabiles();
+            const horasPorDia = calcularHorasPorDia();
+            
+            // Procesar cada semestre
+            for (const semestre in estado.horarios) {
+                const horario = estado.horarios[semestre];
+                
+                // Crear datos para la hoja
+                const wsData = [
+                    ['Hora', ...diasHabiles]
+                ];
+                
+                horasPorDia.forEach(hora => {
+                    const fila = [hora];
+                    diasHabiles.forEach(dia => {
+                        const sesion = horario[dia] && horario[dia][hora];
+                        fila.push(sesion ? `${sesion.materia}\n${sesion.profesor}\n${sesion.aula}` : '');
+                    });
+                    wsData.push(fila);
+                });
+                
+                // Crear hoja de trabajo
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                XLSX.utils.book_append_sheet(wb, ws, `Semestre ${semestre}`);
+            }
+            
+            // Guardar el archivo
+            XLSX.writeFile(wb, 'Horarios_Academicos.xlsx');
+            mostrarNotificacion('Éxito', 'Horarios exportados correctamente', 'success');
+        }
+
+        // Mostrar modal de profesor
+        function mostrarModalProfesor(profesorId = null) {
+            const modal = document.getElementById('modalProfesor');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Limpiar campos
+            document.getElementById('profesorCodigo').value = '';
+            document.getElementById('profesorNombre').value = '';
+            document.getElementById('profesorEspecialidad').value = '';
+            
+            // Si es edición, cargar datos del profesor
+            if (profesorId) {
+                const profesor = estado.profesores.find(p => p.id === profesorId);
+                if (profesor) {
+                    document.getElementById('profesorCodigo').value = profesor.codigo || '';
+                    document.getElementById('profesorNombre').value = profesor.nombre || '';
+                    document.getElementById('profesorEspecialidad').value = profesor.especialidad || '';
+                    document.getElementById('profesorCodigo').readOnly = true;
+                }
+            }
+        }
+
+        // Guardar profesor desde modal
+        function guardarProfesor() {
+            const codigo = document.getElementById('profesorCodigo').value.trim();
+            const nombre = document.getElementById('profesorNombre').value.trim();
+            const especialidad = document.getElementById('profesorEspecialidad').value.trim();
+            
+            // Validación básica
+            if (!codigo || !nombre) {
+                mostrarNotificacion('Error', 'El código y nombre son obligatorios', 'error');
+                return;
+            }
+            
+            // Verificar si ya existe
+            const profesorExistente = estado.profesores.findIndex(p => p.codigo === codigo);
+            
+            if (profesorExistente !== -1) {
+                // Actualizar profesor existente
+                estado.profesores[profesorExistente] = {
+                    ...estado.profesores[profesorExistente],
+                    nombre,
+                    especialidad,
+                };
+                mostrarNotificacion('Éxito', 'Profesor actualizado correctamente', 'success');
+            } else {
+                // Agregar nuevo profesor
+                estado.profesores.push({
+                    id: codigo,
+                    codigo,
+                    nombre,
+                    especialidad,
+                    disponibilidad: {
+                        Lunes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Martes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Miércoles: [true, true, true, true, true, true, true, true, true, true, true],
+                        Jueves: [true, true, true, true, true, true, true, true, true, true, true],
+                        Viernes: [true, true, true, true, true, true, true, true, true, true, true],
+                    }
+                });
+                mostrarNotificacion('Éxito', 'Profesor agregado correctamente', 'success');
+            }
+            
+            // Cerrar modal
+            document.getElementById('modalProfesor').classList.add('hidden');
+            
+            // Actualizar tabla de profesores
+            renderizarProfesores();
+            
+            // Guardar datos
+            guardarDatosLocalmente();
+            
+            // Actualizar interfaz
+            actualizarInterfaz();
+        }
+
+        // Función para guardar configuración
+        function guardarConfiguracion() {
+            estado.configuracion = {
+                periodoAcademico: document.getElementById('periodoAcademico').value,
+                cantidadSemestres: document.getElementById('cantidadSemestres').value,
+                horaInicio: document.getElementById('horaInicio').value,
+                horaFin: document.getElementById('horaFin').value,
+                duracionBloque: parseInt(document.getElementById('duracionBloque').value),
+                diasDisponibles: obtenerDiasHabiles()
+            };
+            
+            guardarDatosLocalmente();
+            mostrarNotificacion('Éxito', 'Configuración guardada correctamente', 'success');
+            actualizarInterfaz();
+        }
+
+        // Función para guardar restricciones
+        function guardarRestricciones() {
+            // Aquí iría el código para guardar las restricciones
+            // Por simplicidad, sólo mostramos la notificación
+            mostrarNotificacion('Éxito', 'Restricciones guardadas correctamente', 'success');
+        }
+
+        // Cargar datos de ejemplo
+        function cargarDatosEjemplo() {
+            // Cargar profesores de ejemplo
+            estado.profesores = [
+                {
+                    id: "PROF001",
+                    codigo: "PROF001",
+                    nombre: "Ana García",
+                    especialidad: "Matemáticas",
+                    disponibilidad: {
+                        Lunes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Martes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Miércoles: [true, true, true, true, true, true, true, true, true, true, true],
+                        Jueves: [true, true, true, true, true, true, true, true, true, true, true],
+                        Viernes: [true, true, true, true, true, true, true, true, true, true, true],
+                    }
+                },
+                {
+                    id: "PROF002",
+                    codigo: "PROF002",
+                    nombre: "Carlos Rodríguez",
+                    especialidad: "Física",
+                    disponibilidad: {
+                        Lunes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Martes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Miércoles: [true, true, true, true, true, true, true, true, true, true, true],
+                        Jueves: [true, true, true, true, true, true, true, true, true, true, true],
+                        Viernes: [true, true, true, true, true, true, true, true, true, true, true],
+                    }
+                },
+                {
+                    id: "PROF003",
+                    codigo: "PROF003",
+                    nombre: "María Fernández",
+                    especialidad: "Informática",
+                    disponibilidad: {
+                        Lunes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Martes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Miércoles: [true, true, true, true, true, true, true, true, true, true, true],
+                        Jueves: [true, true, true, true, true, true, true, true, true, true, true],
+                        Viernes: [true, true, true, true, true, true, true, true, true, true, true],
+                    }
+                },
+                {
+                    id: "PROF004",
+                    codigo: "PROF004",
+                    nombre: "Javier López",
+                    especialidad: "Historia",
+                    disponibilidad: {
+                        Lunes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Martes: [true, true, true, true, true, true, true, true, true, true, true],
+                        Miércoles: [true, true, true, true, true, true, true, true, true, true, true],
+                        Jueves: [true, true, true, true, true, true, true, true, true, true, true],
+                        Viernes: [true, true, true, true, true, true, true, true, true, true, true],
+                    }
+                }
+            ];
+
+            // Cargar materias de ejemplo
+            estado.materias = [
+                { id: "MAT001", codigo: "MAT001", nombre: "Matemáticas I", semestre: 1, horasSemana: 4, tipoAula: "normal" },
+                { id: "FIS001", codigo: "FIS001", nombre: "Física I", semestre: 1, horasSemana: 3, tipoAula: "laboratorio" },
+                { id: "PROG001", codigo: "PROG001", nombre: "Programación", semestre: 1, horasSemana: 4, tipoAula: "informatica" },
+                { id: "MAT002", codigo: "MAT002", nombre: "Matemáticas II", semestre: 2, horasSemana: 4, tipoAula: "normal" },
+                { id: "FIS002", codigo: "FIS002", nombre: "Física II", semestre: 2, horasSemana: 3, tipoAula: "laboratorio" },
+                { id: "PROG002", codigo: "PROG002", nombre: "Algoritmos", semestre: 2, horasSemana: 4, tipoAula: "informatica" },
+                { id: "BD001", codigo: "BD001", nombre: "Base de Datos", semestre: 3, horasSemana: 4, tipoAula: "informatica" },
+                { id: "RED001", codigo: "RED001", nombre: "Redes", semestre: 3, horasSemana: 3, tipoAula: "informatica" }
+            ];
+
+            // Cargar aulas de ejemplo
+            estado.aulas = [
+                { id: "A101", codigo: "A101", nombre: "Aula 101", tipo: "normal", capacidad: 30, ubicacion: "Edificio A" },
+                { id: "A102", codigo: "A102", nombre: "Aula 102", tipo: "normal", capacidad: 25, ubicacion: "Edificio A" },
+                { id: "LAB01", codigo: "LAB01", nombre: "Laboratorio 1", tipo: "laboratorio", capacidad: 20, ubicacion: "Edificio B" },
+                { id: "INFO01", codigo: "INFO01", nombre: "Sala Informática 1", tipo: "informatica", capacidad: 15, ubicacion: "Edificio C" }
+            ];
+
+            // Guardar datos
+            guardarDatosLocalmente();
+
+            // Actualizar interfaz
+            renderizarProfesores();
+            renderizarMaterias();
+            renderizarAulas();
+            actualizarInterfaz();
+
+            mostrarNotificacion('Éxito', 'Datos de ejemplo cargados correctamente', 'success');
+        }
+
+        // Guardar datos en localStorage
+        function guardarDatosLocalmente() {
+            try {
+                localStorage.setItem('horarios_app_datos', JSON.stringify({
+                    profesores: estado.profesores,
+                    materias: estado.materias,
+                    aulas: estado.aulas,
+                    configuracion: estado.configuracion
+                }));
+            } catch (error) {
+                console.error('Error al guardar datos en localStorage:', error);
+            }
+        }
+
+        // Cargar datos desde localStorage
+        function cargarDatosGuardados() {
+            try {
+                const datosGuardados = localStorage.getItem('horarios_app_datos');
+                if (datosGuardados) {
+                    const datos = JSON.parse(datosGuardados);
+                    estado.profesores = datos.profesores || [];
+                    estado.materias = datos.materias || [];
+                    estado.aulas = datos.aulas || [];
+                    estado.configuracion = datos.configuracion || estado.configuracion;
+                    
+                    // Actualizar campos de configuración
+                    if (estado.configuracion) {
+                        document.getElementById('periodoAcademico').value = estado.configuracion.periodoAcademico || 'semestral';
+                        document.getElementById('cantidadSemestres').value = estado.configuracion.cantidadSemestres || 4;
+                        document.getElementById('horaInicio').value = estado.configuracion.horaInicio || '07:00';
+                        document.getElementById('horaFin').value = estado.configuracion.horaFin || '18:00';
+                        document.getElementById('duracionBloque').value = estado.configuracion.duracionBloque || 60;
+                        
+                        // Actualizar días seleccionados
+                        const diasDisponibles = estado.configuracion.diasDisponibles || [];
+                        document.getElementById('diaLunes').checked = diasDisponibles.includes('Lunes');
+                        document.getElementById('diaMartes').checked = diasDisponibles.includes('Martes');
+                        document.getElementById('diaMiercoles').checked = diasDisponibles.includes('Miércoles');
+                        document.getElementById('diaJueves').checked = diasDisponibles.includes('Jueves');
+                        document.getElementById('diaViernes').checked = diasDisponibles.includes('Viernes');
+                        document.getElementById('diaSabado').checked = diasDisponibles.includes('Sábado');
+                    }
+                }
+            } catch (error) {
+                console.error('Error al cargar datos desde localStorage:', error);
+            }
+        }
+
+        // Mostrar notificación
+        function mostrarNotificacion(titulo, mensaje, tipo) {
+            const notificacion = document.getElementById('notification');
+            const notificationTitle = document.getElementById('notificationTitle');
+            const notificationMessage = document.getElementById('notificationMessage');
+            
+            notificationTitle.textContent = titulo;
+            notificationMessage.textContent = mensaje;
+            
+            // Aplicar estilo según tipo
+            notificacion.className = 'notification shadow-lg';
+            
+            switch (tipo) {
+                case 'success':
+                    notificacion.classList.add('bg-green-50', 'border-l-4', 'border-green-500', 'text-green-700');
+                    break;
+                case 'error':
+                    notificacion.classList.add('bg-red-50', 'border-l-4', 'border-red-500', 'text-red-700');
+                    break;
+                case 'warning':
+                    notificacion.classList.add('bg-yellow-50', 'border-l-4', 'border-yellow-500', 'text-yellow-700');
+                    break;
+                default:
+                    notificacion.classList.add('bg-blue-50', 'border-l-4', 'border-blue-500', 'text-blue-700');
+            }
+            
+            notificacion.classList.add('show');
+            
+            setTimeout(() => {
+                notificacion.classList.remove('show');
+            }, 3000);
+        }
+
+        // Mostrar/ocultar pantalla de carga
+        function mostrarCargando(mostrar) {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (mostrar) {
+                loadingScreen.style.display = 'flex';
+            } else {
+                loadingScreen.style.display = 'none';
+            }
+        }
+
+        // Funciones globales para acceso desde HTML
+        window.editarProfesor = function(id) {
+            mostrarModalProfesor(id);
+        };
+
+        window.eliminarProfesor = function(id) {
+            if (confirm('¿Está seguro de eliminar este profesor?')) {
+                estado.profesores = estado.profesores.filter(p => p.id !== id);
+                renderizarProfesores();
+                guardarDatosLocalmente();
+                actualizarInterfaz();
+                mostrarNotificacion('Éxito', 'Profesor eliminado correctamente', 'success');
+            }
+        };
+
+        window.editarMateria = function(id) {
+            // Implementar en futuras versiones
+            alert('Funcionalidad en desarrollo: Editar materia');
+        };
+
+        window.eliminarMateria = function(id) {
+            if (confirm('¿Está seguro de eliminar esta materia?')) {
+                estado.materias = estado.materias.filter(m => m.id !== id);
+                renderizarMaterias();
+                guardarDatosLocalmente();
+                actualizarInterfaz();
+                mostrarNotificacion('Éxito', 'Materia eliminada correctamente', 'success');
+            }
+        };
+
+        window.editarAula = function(id) {
+            // Implementar en futuras versiones
+            alert('Funcionalidad en desarrollo: Editar aula');
+        };
+
+        window.eliminarAula = function(id) {
+            if (confirm('¿Está seguro de eliminar esta aula?')) {
+                estado.aulas = estado.aulas.filter(a => a.id !== id);
+                renderizarAulas();
+                guardarDatosLocalmente();
+                actualizarInterfaz();
+                mostrarNotificacion('Éxito', 'Aula eliminada correctamente', 'success');
+            }
+        };
+    </script>
+</body>
+</html>
