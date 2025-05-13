@@ -1,0 +1,213 @@
+body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f9fafb;
+            }
+
+            .tab-content {
+                display: none;
+            }
+
+            .tab-content.active {
+                display: block;
+                animation: fadeIn 0.3s ease-in-out;
+            }
+
+            .session {
+                background-color: #e3f2fd;
+                border-radius: 0.375rem;
+                padding: 0.5rem;
+                margin-bottom: 0.25rem;
+                cursor: move; /* Sugiere drag-and-drop, pero no implementado */
+                border-left: 4px solid #2563eb;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+
+            .session:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+                z-index: 2;
+            }
+
+            .conflict {
+                background-color: #ffecb3;
+                border-left: 4px solid #f59e0b;
+            }
+
+            .optimized {
+                background-color: #c8e6c9;
+                border-left: 4px solid #10b981;
+            }
+
+            .fijado {
+                border-left: 4px solid #8b5cf6;
+                background-color: #ddd6fe;
+            }
+
+            .timetable th, .timetable td {
+                border: 1px solid #e5e7eb;
+                padding: 0.5rem;
+                text-align: center;
+                vertical-align: top; /* Alineación vertical para celdas de horario */
+            }
+
+            .timetable th {
+                background-color: #f3f4f6;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            .loading {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.7);
+                z-index: 9999;
+                display: none; /* Cambiado a none por defecto */
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+            }
+
+            .spinner {
+                border: 4px solid rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                border-top: 4px solid #3b82f6;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            .notification {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 1rem;
+                border-radius: 0.375rem;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 10000; /* Asegurar que esté sobre otros elementos */
+                transform: translateY(100%);
+                opacity: 0;
+                transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+                min-width: 250px; /* Ancho mínimo */
+                max-width: 400px; /* Ancho máximo */
+            }
+
+            .notification.show {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            /* Clase para celdas editables */
+            .editable-cell {
+                cursor: pointer;
+                position: relative;
+            }
+
+            .editable-cell:hover::after {
+                content: "✏️";
+                position: absolute;
+                top: 2px;
+                right: 2px;
+                font-size: 12px;
+                opacity: 0.7;
+            }
+
+            /* Estilos para la disponibilidad de profesores */
+            .disponibilidad-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Ajustado minmax */
+                gap: 1rem; /* Aumentado gap */
+            }
+
+            .dia-disponibilidad {
+                border: 1px solid #e5e7eb;
+                border-radius: 0.375rem;
+                padding: 0.75rem; /* Aumentado padding */
+                background-color: #f9fafb; /* Fondo ligero */
+            }
+
+            /* Clase auxiliar para altura máxima de modales */
+            .max-h-90vh {
+                max-height: 90vh;
+            }
+
+            /* Optimización para impresión PDF */
+            @media print {
+                body {
+                    width: 100%;
+                    margin: 0;
+                    padding: 0;
+                    -webkit-print-color-adjust: exact; /* Forzar impresión de colores de fondo en Chrome/Safari */
+                    print-color-adjust: exact; /* Estándar */
+                }
+
+                .no-print {
+                    display: none !important;
+                }
+
+                .tab-content {
+                    display: block !important;
+                    page-break-after: always;
+                }
+
+                .container {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    padding: 10px !important;
+                    margin: 0 !important;
+                }
+
+                .timetable {
+                    width: 100% !important;
+                    font-size: 7pt !important; /* Reducido aún más para PDF */
+                    table-layout: fixed; /* Para mejor control de ancho */
+                    /* Evitar que las tablas se dividan entre páginas si es posible */
+                    page-break-inside: avoid;
+                }
+                .timetable caption {
+                    font-size: 9pt !important;
+                    margin-bottom: 5px !important;
+                    page-break-after: avoid; /* Evitar salto justo después del título */
+                }
+                .timetable tbody tr {
+                     page-break-inside: avoid; /* Intentar mantener filas juntas */
+                }
+                .timetable th, .timetable td {
+                    padding: 2px !important; /* Reducido padding */
+                    overflow: hidden; /* Evitar desbordamiento */
+                    word-wrap: break-word; /* Romper palabras largas */
+                }
+                .session {
+                    font-size: 6pt !important; /* Reducido tamaño de fuente en sesión */
+                    padding: 2px !important;
+                    margin-bottom: 1px !important;
+                    border-width: 2px !important;
+                    /* Forzar impresión de colores de fondo en sesiones */
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+                header, nav, button, input, select, .notification, .loading {
+                    display: none !important; /* Ocultar elementos no necesarios */
+                }
+                #datosEstadisticos, #estadisticasAvanzadas, #mensajeNoHorario {
+                     display: none !important; /* Ocultar estadísticas y mensajes */
+                }
+                #horarioContainer {
+                    overflow: visible !important; /* Mostrar todo el contenido */
+                }
+                /* Ocultar resumen detallado en impresión */
+                #resumenCargaProfesores {
+                    display: none !important;
+                }
+            }
