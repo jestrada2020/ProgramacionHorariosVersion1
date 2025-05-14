@@ -6,16 +6,17 @@
         }
 
         // Mostrar notificación flotante
-        function mostrarNotificacion(titulo, mensaje, tipo = 'info') { // info, success, error
+        function mostrarNotificacion(titulo, mensaje, tipo = 'info', duracion = 5000) { // info, success, error
             const notification = document.getElementById('notification');
             document.getElementById('notificationTitle').textContent = titulo;
             document.getElementById('notificationMessage').textContent = mensaje;
 
-            notification.classList.remove('bg-blue-100', 'text-blue-700', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700', 'bg-gray-100', 'text-gray-700');
+            notification.classList.remove('bg-blue-100', 'text-blue-700', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700', 'bg-gray-100', 'text-gray-700', 'bg-yellow-100', 'text-yellow-700');
             let bgColor, textColor;
             switch (tipo) {
                 case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; break;
                 case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; break;
+                case 'warning': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-700'; break;
                 case 'info':
                 default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; break;
             }
@@ -27,12 +28,12 @@
             });
 
 
-            // Ocultar automáticamente después de 5 segundos
+            // Ocultar automáticamente después de la duración especificada (por defecto 5 segundos)
             setTimeout(() => {
                 notification.classList.remove('show');
                 // Esperar a que termine la transición antes de ocultar con display:none
                 setTimeout(() => notification.classList.add('hidden'), 300);
-            }, 5000);
+            }, duracion);
         }
 
         // Calcular horas del día según configuración
@@ -71,8 +72,10 @@
             try {
                 const horaNum = parseInt(hora.split(':')[0]);
                 return horaNum < 13 ? 'mañana' : 'tarde'; // Asumiendo que las 13:00 es el inicio de la tarde
-            } catch {
-                return null;
+            } catch (e) {
+                console.error("Error obteniendo turno para hora:", hora, e);
+                // Para evitar errores, en caso de falla devolvemos 'mañana' por defecto
+                return 'mañana';
             }
         }
 
@@ -162,12 +165,54 @@
             const diasHabiles = obtenerDiasHabiles();
             const horasPorDia = calcularHorasPorDia();
 
-            // Asegurar que todos los semestres configurados existan en horariosVisualizacion.porSemestre
-            const cantSem = parseInt(estado.configuracion.cantidadSemestres) || 1;
-            for (let i = 1; i <= cantSem; i++) {
-                if (!estado.horariosVisualizacion.porSemestre[i]) {
-                    estado.horariosVisualizacion.porSemestre[i] = estado.horarios[i] || {}; // Usar datos o vacío
+            // Determinar el máximo semestre entre la configuración y los datos reales
+            let maxSemestre = parseInt(estado.configuracion.cantidadSemestres) || 9;
+            
+            // Verificar también el semestre más alto en las materias
+            if (estado.materias && estado.materias.length > 0) {
+                const maxMaterias = estado.materias.reduce((max, materia) => 
+                    Math.max(max, materia.semestre || 1), 1);
+                maxSemestre = Math.max(maxSemestre, maxMaterias);
+                
+                // Actualizar la configuración si es necesario
+                if (maxSemestre > estado.configuracion.cantidadSemestres) {
+                    estado.configuracion.cantidadSemestres = maxSemestre;
+                    console.log(`Actualizando cantidadSemestres a ${maxSemestre} basado en datos`);
                 }
+            }
+            
+            console.log(`Generando visualización para ${maxSemestre} semestres`);
+            
+            // Asegurar que todos los semestres requeridos existan en horariosVisualizacion.porSemestre
+            for (let i = 1; i <= maxSemestre; i++) {
+                // Inicializar estructura si no existe
+                if (!estado.horariosVisualizacion.porSemestre[i]) {
+                    estado.horariosVisualizacion.porSemestre[i] = {};
+                }
+                
+                const diasHabiles = obtenerDiasHabiles();
+                // Siempre inicializar los días para cada semestre, aunque no haya datos
+                diasHabiles.forEach(dia => {
+                    if (!estado.horariosVisualizacion.porSemestre[i][dia]) {
+                        estado.horariosVisualizacion.porSemestre[i][dia] = {};
+                    }
+                });
+                
+                // Si hay datos en estado.horarios para este semestre, asegurarse de copiarlos
+                if (estado.horarios[i]) {
+                    diasHabiles.forEach(dia => {
+                        // Ya inicializados arriba
+                        
+                        // Copiar cada sesión de horario
+                        if (estado.horarios[i][dia]) {
+                            Object.keys(estado.horarios[i][dia]).forEach(hora => {
+                                estado.horariosVisualizacion.porSemestre[i][dia][hora] = estado.horarios[i][dia][hora];
+                            });
+                        }
+                    });
+                }
+                
+                console.log(`Semestre ${i}: ${Object.keys(estado.horariosVisualizacion.porSemestre[i]).length} días inicializados`);
             }
 
             for (const semestre in estado.horarios) {
@@ -199,6 +244,14 @@
                                 if (!estado.horariosVisualizacion.porMateria[sesion.codigo]) estado.horariosVisualizacion.porMateria[sesion.codigo] = {};
                                 if (!estado.horariosVisualizacion.porMateria[sesion.codigo][dia]) estado.horariosVisualizacion.porMateria[sesion.codigo][dia] = {};
                                 estado.horariosVisualizacion.porMateria[sesion.codigo][dia][hora] = sesionConSemestre;
+                            } else if (sesion.materiaId) {
+                                // Buscar el código de materia si no está disponible directamente en la sesión
+                                const materia = estado.materias.find(m => m.id === sesion.materiaId);
+                                if (materia && materia.codigo) {
+                                    if (!estado.horariosVisualizacion.porMateria[materia.codigo]) estado.horariosVisualizacion.porMateria[materia.codigo] = {};
+                                    if (!estado.horariosVisualizacion.porMateria[materia.codigo][dia]) estado.horariosVisualizacion.porMateria[materia.codigo][dia] = {};
+                                    estado.horariosVisualizacion.porMateria[materia.codigo][dia][hora] = sesionConSemestre;
+                                }
                             }
                         }
                     }
@@ -284,6 +337,21 @@
 
                         if (esConflicto) divClasses += ' conflict';
                         if (sesion.fijado) divClasses += ' fijado';
+                        
+                        // Obtener información adicional del horario preferido si existe
+                        let horarioInfo = "";
+                        
+                        // Mostrar horario preferido desde la sesión si está disponible
+                        if (sesion.horarioPreferido) {
+                            horarioInfo = `<div class="text-xs italic text-blue-600">${sesion.horarioPreferido}</div>`;
+                        } 
+                        // O intentar mostrarlo desde los datos de la materia si estamos en vista de materia
+                        else if (tipoVista === 'materia') {
+                            const materiaCompleta = estado.materias.find(m => m.codigo === sesion.codigo);
+                            if (materiaCompleta && materiaCompleta.horarioPreferidoTexto) {
+                                horarioInfo = `<div class="text-xs italic text-blue-600">${materiaCompleta.horarioPreferidoTexto}</div>`;
+                            }
+                        }
 
                         content = `
                             <div class="${divClasses}" data-dia="${dia}" data-hora="${hora}" data-materia="${sesion.codigo}" title="${sesion.materia} - ${sesion.profesor} - ${sesion.aula}">
@@ -291,6 +359,7 @@
                                 <div class="truncate">${sesion.profesor}</div>
                                 <div class="text-gray-600 truncate">${sesion.aula}</div>
                                 ${tipoVista !== 'semestre' && sesion.semestre ? `<div class="text-gray-500">S${sesion.semestre}</div>` : ''}
+                                ${horarioInfo}
                             </div>`;
                     } else {
                         cellClasses += " bg-gray-50"; // Fondo ligero para celdas vacías

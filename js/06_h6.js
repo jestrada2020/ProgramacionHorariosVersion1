@@ -80,8 +80,30 @@
             const orientation = document.getElementById('pdfOrientation').value; // landscape, portrait
 
             if (!datosHorario || Object.keys(datosHorario).length === 0) {
-                 mostrarNotificacion('Error', 'No hay datos en la vista actual para exportar a PDF.', 'error');
-                 return;
+                // En lugar de mostrar error, forzar la regeneración de visualizaciones y reintentar
+                console.log("Intentando regenerar visualizaciones antes de exportar...");
+                generarHorariosVisualizacion();
+                
+                // Obtener datos nuevamente después de regenerar
+                const dataActualizada = obtenerDatosParaVista(tipoVista, elementoId);
+                
+                if (!dataActualizada.horario || Object.keys(dataActualizada.horario).length === 0) {
+                    mostrarNotificacion('Error', 'No hay datos en la vista actual para exportar a PDF.', 'error');
+                    return;
+                }
+            }
+            
+            console.log("Usando el modal de PDF avanzado para mejor control de exportación");
+            // Mostrar el modal de exportación avanzada en lugar de exportar directamente
+            const modalExportarPDF = document.getElementById('modalExportarPDF');
+            if (modalExportarPDF) {
+                modalExportarPDF.classList.remove('hidden');
+                modalExportarPDF.classList.add('flex');
+                
+                // Inicializar valores
+                document.getElementById('pdfPageSizeModal').value = pageSize;
+                document.getElementById('pdfOrientationModal').value = orientation;
+                return; // Detener la exportación directa, ahora se manejará a través del modal
             }
 
             mostrarCargando(true);

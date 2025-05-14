@@ -212,7 +212,17 @@
             if (!select) return;
             const currentVal = select.value; // Guardar valor actual si existe
             select.innerHTML = '';
-            const cantSem = parseInt(estado.configuracion.cantidadSemestres) || 4;
+            
+            // Usar el máximo entre la configuración y el semestre más alto en los datos
+            let cantSem = parseInt(estado.configuracion.cantidadSemestres) || 9;
+            
+            // Verificar si hay materias con semestres más altos
+            if (estado.materias && estado.materias.length > 0) {
+                const maxSemestre = estado.materias.reduce((max, materia) => 
+                    Math.max(max, materia.semestre || 1), 1);
+                cantSem = Math.max(cantSem, maxSemestre);
+            }
+            
             for (let i = 1; i <= cantSem; i++) {
                 select.add(new Option(`Semestre ${i}`, i));
             }
@@ -253,4 +263,345 @@
                  calcularHorasPorDia().forEach(hora => horaSelect.add(new Option(hora, hora)));
                  if (currentVal) horaSelect.value = currentVal;
             }
+        }
+
+        // Manejar el botón de exportar PDF
+        document.getElementById('exportarPDFBtn').addEventListener('click', function() {
+            // Mostrar el modal con las opciones de PDF
+            const modalExportarPDF = document.getElementById('modalExportarPDF');
+            modalExportarPDF.classList.remove('hidden');
+            modalExportarPDF.classList.add('flex');
+            
+            // Establecer valores predeterminados
+            document.getElementById('pdfPageSizeModal').value = document.getElementById('pdfPageSize').value || 'letter';
+            document.getElementById('pdfOrientationModal').value = document.getElementById('pdfOrientation').value || 'landscape';
+        });
+
+        // Manejar el botón cancelar del modal PDF
+        document.getElementById('cancelarPDFBtn').addEventListener('click', function() {
+            document.getElementById('modalExportarPDF').classList.add('hidden');
+            document.getElementById('modalExportarPDF').classList.remove('flex');
+        });
+
+        // Manejar el botón confirmar del modal PDF
+        document.getElementById('confirmarPDFBtn').addEventListener('click', function() {
+            // Cerrar el modal
+            document.getElementById('modalExportarPDF').classList.add('hidden');
+            document.getElementById('modalExportarPDF').classList.remove('flex');
+            
+            // Obtener los valores seleccionados
+            const pageSize = document.getElementById('pdfPageSizeModal').value;
+            const orientation = document.getElementById('pdfOrientationModal').value;
+            const exportType = document.getElementById('pdfExportTypeModal').value;
+            
+            // Actualizar los campos ocultos del menú desplegable para mantener coherencia
+            document.getElementById('pdfPageSize').value = pageSize;
+            document.getElementById('pdfOrientation').value = orientation;
+            
+            // Exportar según el tipo seleccionado
+            if (exportType === 'all') {
+                exportarTodosLosHorarios(pageSize, orientation);
+            } else {
+                exportarHorarioDirectoPDF(pageSize, orientation);
+            }
+        });
+
+        // Función para exportar horario directamente a PDF
+        function exportarHorarioDirectoPDF(pageSize, orientation) {
+            const tipoVista = document.getElementById('filtroVistaHorario').value;
+            const elementoId = document.getElementById('elementoSeleccionado').value;
+            
+            mostrarCargando(true);
+            
+            setTimeout(() => {
+                try {
+                    const { horario: datosHorario, titulo } = obtenerDatosParaVista(tipoVista, elementoId);
+                    
+                    if (!datosHorario || Object.keys(datosHorario).length === 0) {
+                        mostrarNotificacion('Error', 'No hay datos en la vista actual para exportar a PDF.', 'error');
+                        mostrarCargando(false);
+                        return;
+                    }
+                    
+                    const { jsPDF } = window.jspdf;
+                    // Definir tamaño Oficio (aproximado)
+                    const oficioWidthMM = 216;
+                    const oficioHeightMM = 330; // Ajustado para 'legal' típico
+                    const format = pageSize === 'legal' ? [oficioWidthMM, oficioHeightMM] : pageSize;
+                    
+                    const doc = new jsPDF({ orientation: orientation, unit: 'mm', format: format });
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    const margin = 10;
+                    const usableWidth = pageWidth - 2 * margin;
+                    let y = margin;
+                    
+                    // Título y fecha
+                    doc.setFontSize(16);
+                    doc.text(titulo, pageWidth / 2, y, { align: 'center' });
+                    y += 8;
+                    doc.setFontSize(10);
+                    doc.text(`Generado: ${new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: 'right' });
+                    y += 10;
+                    
+                    const diasHabiles = obtenerDiasHabiles();
+                    const horasPorDia = calcularHorasPorDia();
+                    const numCols = diasHabiles.length + 1;
+                    const colWidth = usableWidth / numCols;
+                    const headerHeight = orientation === 'landscape' ? 6 : 7;
+                    const rowHeight = orientation === 'landscape' ? 9 : 11;
+                    
+                    // Cabecera de la tabla
+                    doc.setFontSize(orientation === 'landscape' ? 7 : 8);
+                    doc.setFont(undefined, 'bold');
+                    doc.setFillColor(230, 230, 230);
+                    doc.rect(margin, y, usableWidth, headerHeight, 'F');
+                    doc.rect(margin, y, colWidth, headerHeight, 'S');
+                    doc.text('Hora', margin + colWidth / 2, y + headerHeight / 2 + (orientation === 'landscape' ? 1.5 : 2), { align: 'center' });
+                    
+                    diasHabiles.forEach((dia, i) => {
+                        const x = margin + colWidth * (i + 1);
+                        doc.rect(x, y, colWidth, headerHeight, 'S');
+                        doc.text(dia, x + colWidth / 2, y + headerHeight / 2 + (orientation === 'landscape' ? 1.5 : 2), { align: 'center' });
+                    });
+                    
+                    y += headerHeight;
+                    doc.setFont(undefined, 'normal');
+                    
+                    // Filas de datos
+                    horasPorDia.forEach(hora => {
+                        // Comprobar si necesitamos saltar a una nueva página
+                        if (y + rowHeight > pageHeight - margin) {
+                            doc.addPage();
+                            y = margin;
+                            
+                            // Repetir cabecera en la nueva página
+                            doc.setFontSize(orientation === 'landscape' ? 7 : 8);
+                            doc.setFont(undefined, 'bold');
+                            doc.setFillColor(230, 230, 230);
+                            doc.rect(margin, y, usableWidth, headerHeight, 'F');
+                            doc.rect(margin, y, colWidth, headerHeight, 'S');
+                            doc.text('Hora', margin + colWidth / 2, y + headerHeight / 2 + (orientation === 'landscape' ? 1.5 : 2), { align: 'center' });
+                            
+                            diasHabiles.forEach((dia, i) => {
+                                const x = margin + colWidth * (i + 1);
+                                doc.rect(x, y, colWidth, headerHeight, 'S');
+                                doc.text(dia, x + colWidth / 2, y + headerHeight / 2 + (orientation === 'landscape' ? 1.5 : 2), { align: 'center' });
+                            });
+                            
+                            y += headerHeight;
+                            doc.setFont(undefined, 'normal');
+                        }
+                        
+                        // Celda de hora
+                        doc.setFillColor(245, 245, 245);
+                        doc.rect(margin, y, colWidth, rowHeight, 'FD');
+                        doc.setFontSize(orientation === 'landscape' ? 7 : 8);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(hora, margin + colWidth / 2, y + rowHeight / 2 + (orientation === 'landscape' ? 1 : 1.5), { align: 'center' });
+                        doc.setFont(undefined, 'normal');
+                        
+                        // Celdas de sesiones
+                        diasHabiles.forEach((dia, i) => {
+                            const x = margin + colWidth * (i + 1);
+                            doc.rect(x, y, colWidth, rowHeight, 'S');
+                            
+                            const sesion = datosHorario[dia]?.[hora];
+                            if (sesion) {
+                                doc.setFontSize(orientation === 'landscape' ? 5 : 6);
+                                let textLines = [
+                                    sesion.materia,
+                                    `(${sesion.profesor})`,
+                                    `[${sesion.aula}]`
+                                ];
+                                
+                                if (sesion.semestre && tipoVista !== 'semestre') {
+                                    textLines.push(`{S${sesion.semestre}}`);
+                                }
+                                
+                                if (sesion.fijado) doc.setTextColor(139, 92, 246);
+                                doc.text(textLines, x + 1, y + (orientation === 'landscape' ? 2 : 2.5), { maxWidth: colWidth - 2 });
+                                if (sesion.fijado) doc.setTextColor(0, 0, 0);
+                            }
+                        });
+                        
+                        y += rowHeight;
+                    });
+                    
+                    // Numerar páginas
+                    const totalPages = doc.internal.getNumberOfPages();
+                    for (let i = 1; i <= totalPages; i++) {
+                        doc.setPage(i);
+                        doc.setFontSize(8);
+                        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+                    }
+                    
+                    // Guardar el PDF
+                    doc.save(`Horario_${titulo.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+                    mostrarNotificacion('Éxito', 'Horario exportado a PDF.', 'success');
+                    
+                } catch (error) {
+                    console.error("Error exportando a PDF:", error);
+                    mostrarNotificacion('Error', `No se pudo exportar a PDF: ${error.message}`, 'error');
+                } finally {
+                    mostrarCargando(false);
+                }
+            }, 100);
+        }
+
+        // Función para exportar todos los semestres a un solo PDF
+        function exportarTodosLosHorarios(pageSize, orientation) {
+            mostrarCargando(true);
+            
+            setTimeout(() => {
+                try {
+                    const cantidadSemestres = parseInt(estado.configuracion.cantidadSemestres);
+                    if (!cantidadSemestres || cantidadSemestres <= 0) {
+                        mostrarNotificacion('Error', 'No se encontraron semestres para exportar.', 'error');
+                        mostrarCargando(false);
+                        return;
+                    }
+                    
+                    const { jsPDF } = window.jspdf;
+                    // Definir tamaño Oficio (aproximado)
+                    const oficioWidthMM = 216;
+                    const oficioHeightMM = 330; // Ajustado para 'legal' típico
+                    const format = pageSize === 'legal' ? [oficioWidthMM, oficioHeightMM] : pageSize;
+                    
+                    const doc = new jsPDF({ orientation: orientation, unit: 'mm', format: format });
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    const margin = 10;
+                    const usableWidth = pageWidth - 2 * margin;
+                    
+                    const diasHabiles = obtenerDiasHabiles();
+                    const horasPorDia = calcularHorasPorDia();
+                    const numCols = diasHabiles.length + 1;
+                    const colWidth = usableWidth / numCols;
+                    const headerHeight = orientation === 'landscape' ? 6 : 7;
+                    const rowHeight = orientation === 'landscape' ? 9 : 11;
+                    
+                    // Para cada semestre, crear una página
+                    for (let semestre = 1; semestre <= cantidadSemestres; semestre++) {
+                        // Si no es la primera página, añadir una nueva página
+                        if (semestre > 1) {
+                            doc.addPage();
+                        }
+                        
+                        const titulo = `Horario Semestre ${semestre}`;
+                        let y = margin;
+                        
+                        // Título y fecha
+                        doc.setFontSize(16);
+                        doc.text(titulo, pageWidth / 2, y, { align: 'center' });
+                        y += 8;
+                        doc.setFontSize(10);
+                        doc.text(`Generado: ${new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: 'right' });
+                        y += 10;
+                        
+                        // Cabecera de la tabla
+                        doc.setFontSize(orientation === 'landscape' ? 7 : 8);
+                        doc.setFont(undefined, 'bold');
+                        doc.setFillColor(230, 230, 230);
+                        doc.rect(margin, y, usableWidth, headerHeight, 'F');
+                        doc.rect(margin, y, colWidth, headerHeight, 'S');
+                        doc.text('Hora', margin + colWidth / 2, y + headerHeight / 2 + (orientation === 'landscape' ? 1.5 : 2), { align: 'center' });
+                        
+                        diasHabiles.forEach((dia, i) => {
+                            const x = margin + colWidth * (i + 1);
+                            doc.rect(x, y, colWidth, headerHeight, 'S');
+                            doc.text(dia, x + colWidth / 2, y + headerHeight / 2 + (orientation === 'landscape' ? 1.5 : 2), { align: 'center' });
+                        });
+                        
+                        y += headerHeight;
+                        doc.setFont(undefined, 'normal');
+                        
+                        // Obtener datos de horario para este semestre
+                        // El problema podría estar aquí si los datos no son accesibles correctamente
+                        const datosHorario = estado.horariosVisualizacion.porSemestre[semestre] || 
+                                           (estado.horarios[semestre] || {});
+                        
+                        console.log(`Exportando semestre ${semestre}, datos:`, Object.keys(datosHorario).length > 0 ? "Disponibles" : "Vacíos");
+                        
+                        // Filas de datos
+                        horasPorDia.forEach(hora => {
+                            // Comprobar si necesitamos saltar a una nueva página
+                            if (y + rowHeight > pageHeight - margin) {
+                                doc.addPage();
+                                y = margin;
+                                
+                                // Continuar con título del semestre en nueva página
+                                doc.setFontSize(14);
+                                doc.text(`${titulo} (continuación)`, pageWidth / 2, y, { align: 'center' });
+                                y += 8;
+                                
+                                // Repetir cabecera en la nueva página
+                                doc.setFontSize(orientation === 'landscape' ? 7 : 8);
+                                doc.setFont(undefined, 'bold');
+                                doc.setFillColor(230, 230, 230);
+                                doc.rect(margin, y, usableWidth, headerHeight, 'F');
+                                doc.rect(margin, y, colWidth, headerHeight, 'S');
+                                doc.text('Hora', margin + colWidth / 2, y + headerHeight / 2 + (orientation === 'landscape' ? 1.5 : 2), { align: 'center' });
+                                
+                                diasHabiles.forEach((dia, i) => {
+                                    const x = margin + colWidth * (i + 1);
+                                    doc.rect(x, y, colWidth, headerHeight, 'S');
+                                    doc.text(dia, x + colWidth / 2, y + headerHeight / 2 + (orientation === 'landscape' ? 1.5 : 2), { align: 'center' });
+                                });
+                                
+                                y += headerHeight;
+                                doc.setFont(undefined, 'normal');
+                            }
+                            
+                            // Celda de hora
+                            doc.setFillColor(245, 245, 245);
+                            doc.rect(margin, y, colWidth, rowHeight, 'FD');
+                            doc.setFontSize(orientation === 'landscape' ? 7 : 8);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(hora, margin + colWidth / 2, y + rowHeight / 2 + (orientation === 'landscape' ? 1 : 1.5), { align: 'center' });
+                            doc.setFont(undefined, 'normal');
+                            
+                            // Celdas de sesiones
+                            diasHabiles.forEach((dia, i) => {
+                                const x = margin + colWidth * (i + 1);
+                                doc.rect(x, y, colWidth, rowHeight, 'S');
+                                
+                                const sesion = datosHorario[dia]?.[hora];
+                                if (sesion) {
+                                    doc.setFontSize(orientation === 'landscape' ? 5 : 6);
+                                    let textLines = [
+                                        sesion.materia,
+                                        `(${sesion.profesor})`,
+                                        `[${sesion.aula}]`
+                                    ];
+                                    
+                                    if (sesion.fijado) doc.setTextColor(139, 92, 246);
+                                    doc.text(textLines, x + 1, y + (orientation === 'landscape' ? 2 : 2.5), { maxWidth: colWidth - 2 });
+                                    if (sesion.fijado) doc.setTextColor(0, 0, 0);
+                                }
+                            });
+                            
+                            y += rowHeight;
+                        });
+                    }
+                    
+                    // Numerar páginas
+                    const totalPages = doc.internal.getNumberOfPages();
+                    for (let i = 1; i <= totalPages; i++) {
+                        doc.setPage(i);
+                        doc.setFontSize(8);
+                        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+                    }
+                    
+                    // Guardar el PDF
+                    doc.save(`Todos_Los_Horarios_${new Date().toISOString().slice(0,10)}.pdf`);
+                    mostrarNotificacion('Éxito', 'Todos los horarios exportados a PDF.', 'success');
+                    
+                } catch (error) {
+                    console.error("Error exportando todos los horarios a PDF:", error);
+                    mostrarNotificacion('Error', `No se pudieron exportar todos los horarios a PDF: ${error.message}`, 'error');
+                } finally {
+                    mostrarCargando(false);
+                }
+            }, 100);
         }

@@ -1,9 +1,25 @@
 // Verifica si un profesor está disponible (horario y disponibilidad semanal)
         function estaProfesorDisponible(profesor, dia, hora, semestreExcluir = null) {
+            if (!profesor) {
+                console.error("estaProfesorDisponible recibió un profesor nulo o indefinido");
+                return false;
+            }
+            
             // A. Verificar disponibilidad semanal básica (Mañana/Tarde)
             const turno = obtenerTurno(hora);
+            
+            // Si profesor no tiene diasDisponibles, asumir que está disponible siempre
+            if (!profesor.diasDisponibles) {
+                console.warn(`Profesor ${profesor.nombre} (${profesor.codigo}) no tiene diasDisponibles definido. Asumiendo disponibilidad total.`);
+                // Inicializar con disponibilidad predeterminada
+                profesor.diasDisponibles = {};
+                ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"].forEach(d => {
+                    profesor.diasDisponibles[d] = { mañana: true, tarde: true };
+                });
+            }
+            
             if (!profesor.diasDisponibles?.[dia]?.[turno]) {
-                 // console.log(`Profesor ${profesor.codigo} NO disponible por horario semanal: ${dia} ${turno}`);
+                // console.log(`Profesor ${profesor.codigo} NO disponible por horario semanal: ${dia} ${turno}`);
                 return false; // No disponible según su horario base
             }
 
@@ -22,28 +38,91 @@
         }
 
         // Busca un aula disponible (considerando tipo y disponibilidad global)
-        function buscarAulaDisponible(dia, hora, tipoRequerido) {
-            const aulasCompatibles = estado.aulas.filter(a => a.tipo === tipoRequerido || (tipoRequerido === 'normal' && a.tipo === 'normal')); // Aula normal sirve para materia normal
+        function buscarAulaDisponible(dia, hora, tipoRequerido, semestre = null) {
+            // DEPURACIÓN
+            console.log(`Buscando aula para tipo ${tipoRequerido} en ${dia} ${hora}`);
+            
+            // Si el tipo requerido no está definido, asumir 'normal' para evitar errores
+            if (!tipoRequerido) {
+                console.warn("Tipo de aula no especificado, asumiendo 'normal'");
+                tipoRequerido = 'normal';
+            }
+            
+            // Determinar qué tipos de aulas son compatibles con el tipo requerido
+            // Reglas:
+            // - Un aula especializada sólo es compatible con su tipo específico
+            // - Un aula normal es compatible solo con clases normales
+            // - Un aula laboratorio sólo es compatible con clases de laboratorio
+            
+            const aulasCompatibles = estado.aulas.filter(aula => {
+                // Compatibilidad directa (mismo tipo)
+                if (aula.tipo === tipoRequerido) {
+                    return true;
+                }
+                
+                // Flexibilidad para permitir aulas sin tipo o con tipo vacío
+                if (!aula.tipo && tipoRequerido === 'normal') {
+                    console.log(`Aula ${aula.nombre} sin tipo, asumiendo compatible con tipo normal`);
+                    return true;
+                }
+                
+                // Reglas especiales (personalizar según necesidad)
+                // Si se agregan más tipos de aula, considerar expandir estas reglas
+                
+                return false; // Por defecto, no compatible
+            });
 
-            const aulasLibres = aulasCompatibles.filter(aula => estaAulaDisponible(aula, dia, hora));
+            // Mostrar aulas compatibles encontradas
+            console.log(`Se encontraron ${aulasCompatibles.length} aulas compatibles con tipo ${tipoRequerido}`);
+            
+            if (aulasCompatibles.length === 0) {
+                console.warn("No se encontraron aulas del tipo requerido:", tipoRequerido);
+                console.log("Aulas disponibles en el sistema:", estado.aulas.map(a => `${a.nombre} (${a.tipo})`).join(', '));
+                
+                // Si no hay aulas del tipo requerido pero hay aulas disponibles, usar la primera como fallback
+                if (estado.aulas.length > 0) {
+                    const aulaFallback = estado.aulas[0];
+                    console.warn(`Usando aula de fallback: ${aulaFallback.nombre} (${aulaFallback.tipo}) para tipo requerido ${tipoRequerido}`);
+                    if (estaAulaDisponible(aulaFallback, dia, hora, semestre)) {
+                        return aulaFallback;
+                    }
+                }
+                return null;
+            }
+            
+            // Filtrar solo las aulas que están disponibles
+            const aulasLibres = aulasCompatibles.filter(aula => estaAulaDisponible(aula, dia, hora, semestre));
+            
+            console.log(`De esas, ${aulasLibres.length} están disponibles en ${dia} ${hora}`);
 
             if (aulasLibres.length > 0) {
-                // Devolver una aleatoria o basada en heurística (ej. capacidad más cercana)
-                // TODO: Implementar heurística de capacidad si se desea
-                return aulasLibres[Math.floor(Math.random() * aulasLibres.length)];
+                // Ordenar por criterio (ejemplo: capacidad más cercana a la requerida)
+                // Por ahora sólo devuelve una aleatoria
+                const aulaSeleccionada = aulasLibres[Math.floor(Math.random() * aulasLibres.length)];
+                console.log(`Se seleccionó el aula: ${aulaSeleccionada.nombre}`);
+                return aulaSeleccionada;
             }
-            return null;
+            
+            return null; // No hay aulas disponibles y compatibles
         }
 
         // Verifica si un aula está disponible globalmente
         function estaAulaDisponible(aula, dia, hora, semestreExcluir = null) {
+            if (!aula) {
+                console.error("estaAulaDisponible recibió un aula nula o indefinida");
+                return false;
+            }
+            
             for (const sem in estado.horarios) {
-                 if (semestreExcluir && sem == semestreExcluir) continue;
+                if (semestreExcluir && sem == semestreExcluir) continue;
 
                 if (estado.horarios[sem]?.[dia]?.[hora]?.aulaId === aula.id) {
+                    // console.log(`Aula ${aula.nombre} NO disponible en ${dia} ${hora} por uso en semestre ${sem}`);
                     return false; // Ocupada
                 }
             }
+            
+            // console.log(`Aula ${aula.nombre} disponible en ${dia} ${hora}`);
             return true; // Libre
         }
 
@@ -95,7 +174,7 @@
                     generarHorariosVisualizacion(); // Recalcular vistas
                     actualizarHorarioVisible();
                     actualizarEstadisticasHorario();
-                    renderizarProfesores(); // Actualizar carga detallada
+                    actualizarCargaTrabajoDetallada(); // Actualizar solo la tabla de carga detallada
                     guardarDatosLocalmente();
 
                     if (cambiosRealizados > 0) {

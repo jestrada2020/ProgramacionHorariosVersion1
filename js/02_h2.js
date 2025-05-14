@@ -58,8 +58,14 @@
 
                 const li = document.createElement('li');
                 li.className = 'mb-1 flex justify-between items-center';
+                // Determinar la hora a mostrar (compatibilidad con ambos formatos)
+                let horaTexto = restriccion.hora || "";
+                if (restriccion.horaInicio && restriccion.horaFin) {
+                    horaTexto = `${restriccion.horaInicio}-${restriccion.horaFin}`;
+                }
+
                 li.innerHTML = `
-                    <span>${profesor} - ${materia} - ${aula} (${restriccion.dia} ${restriccion.hora})</span>
+                    <span>${profesor} - ${materia} - ${aula} (${restriccion.dia} ${horaTexto})</span>
                     <button class="text-red-500 hover:text-red-700 text-xs ml-2 no-print" onclick="eliminarHorarioFijo(${index})" title="Eliminar restricción">&times;</button>
                 `;
                 listaUl.appendChild(li);

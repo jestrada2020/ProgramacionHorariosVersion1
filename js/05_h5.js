@@ -11,32 +11,78 @@ function generarIdUnico() {
                 mostrarNotificacion('Error', 'Por favor seleccione un archivo Excel.', 'error');
                 return;
             }
+            
             const file = fileInput.files[0];
+            
+            // Verificar que es un archivo Excel por su extensión
+            const extension = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls', 'xlsm', 'xlsb', 'csv'].includes(extension)) {
+                mostrarNotificacion('Error', 'El archivo seleccionado no es un archivo Excel válido. Use formato .xlsx o .xls', 'error');
+                fileInput.value = '';
+                return;
+            }
+            
+            // Mostrar pantalla de carga
             mostrarCargando(true);
+            mostrarNotificacion('Info', 'Procesando archivo Excel...', 'info');
 
             const reader = new FileReader();
+            
             reader.onload = function (e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    procesarDatosExcel(workbook); // Procesar datos
+                    
+                    // Intentar leer el archivo Excel
+                    let workbook;
+                    try {
+                        workbook = XLSX.read(data, { type: 'array' });
+                    } catch (xlsxError) {
+                        console.error('Error al leer formato Excel:', xlsxError);
+                        mostrarNotificacion('Error', 'El archivo no tiene un formato Excel válido o está corrupto.', 'error');
+                        mostrarCargando(false);
+                        fileInput.value = '';
+                        return;
+                    }
+                    
+                    // Verificar que contiene al menos algunas de las hojas necesarias
+                    const hojasRequeridas = ['Profesores', 'Materias', 'Aulas'];
+                    const hojasExistentes = workbook.SheetNames.filter(nombre => 
+                        hojasRequeridas.includes(nombre));
+                    
+                    if (hojasExistentes.length === 0) {
+                        mostrarNotificacion('Error', 'El archivo Excel no contiene ninguna de las hojas requeridas (Profesores, Materias, Aulas).', 'error', 10000);
+                        mostrarCargando(false);
+                        fileInput.value = '';
+                        return;
+                    }
+                    
+                    // Procesar los datos
+                    procesarDatosExcel(workbook);
+                    
                     guardarDatosLocalmente();
                     renderizarTodo();
                     actualizarInterfaz();
-                    actualizarEstadoBotones(); // Habilitar botones si hay datos
-                    mostrarNotificacion('Éxito', 'Datos cargados correctamente desde Excel.', 'success');
+                    actualizarEstadoBotones();
+                    
+                    // Mostrar resultados
+                    const mensaje = `Datos cargados correctamente: ${estado.profesores.length} profesores, ${estado.materias.length} materias, ${estado.aulas.length} aulas.`;
+                    mostrarNotificacion('Éxito', mensaje, 'success', 8000);
+                    
                 } catch (error) {
                     console.error('Error al procesar Excel:', error);
-                    mostrarNotificacion('Error', `No se pudo procesar el archivo: ${error.message}`, 'error');
+                    mostrarNotificacion('Error', `No se pudo procesar el archivo: ${error.message}`, 'error', 10000);
                 } finally {
                     mostrarCargando(false);
                     fileInput.value = ''; // Limpiar input para permitir recargar el mismo archivo
                 }
             };
+            
             reader.onerror = function() {
                 mostrarCargando(false);
                 mostrarNotificacion('Error', 'Error al leer el archivo.', 'error');
+                fileInput.value = '';
             };
+            
             reader.readAsArrayBuffer(file);
         }
 
@@ -196,19 +242,61 @@ function generarIdUnico() {
 
             // Post-procesamiento: Asignar materias a profesores basado en la hoja "Materias"
             if (estado.profesores.length > 0 && estado.materias.length > 0) {
+                // Paso 1: Procesar las asignaciones directas desde la hoja de Materias
                 estado.materias.forEach(materia => {
                     if (materia.profesorPreferidoCodigo) {
                         const profesorEncontrado = estado.profesores.find(p => p.codigo === materia.profesorPreferidoCodigo);
                         if (profesorEncontrado) {
+                            if (!profesorEncontrado.materiasQueDicta) {
+                                profesorEncontrado.materiasQueDicta = []; // Inicializar si no existe
+                            }
                             if (!profesorEncontrado.materiasQueDicta.includes(materia.id)) {
                                 profesorEncontrado.materiasQueDicta.push(materia.id);
+                            }
+                            
+                            // Calcular la carga horaria basada en el horario preferido
+                            if (materia.horarioPreferidoTexto) {
+                                // Contar cuántos bloques horarios hay en el texto
+                                const horarios = materia.horarioPreferidoTexto.split(',').map(h => h.trim());
+                                const bloques = horarios.length;
+                                
+                                // Asegurar que horasSemana refleje correctamente el número de bloques
+                                if (materia.horasSemana < bloques) {
+                                    console.log(`Actualizando horasSemana para ${materia.nombre} de ${materia.horasSemana} a ${bloques} basado en horarios preferidos`);
+                                    materia.horasSemana = bloques;
+                                }
                             }
                         } else {
                             console.warn(`Profesor con código ${materia.profesorPreferidoCodigo} (asignado a materia ${materia.nombre}) no encontrado en la hoja de Profesores.`);
                         }
                     }
                 });
-                console.log("Información de materiasQueDicta actualizada para profesores.");
+                
+                // Paso 2: Verificar si los profesores tienen la propiedad materiasQueDicta correctamente inicializada
+                estado.profesores.forEach(profesor => {
+                    if (!Array.isArray(profesor.materiasQueDicta)) {
+                        profesor.materiasQueDicta = [];
+                        console.warn(`El profesor ${profesor.nombre} no tenía la propiedad materiasQueDicta inicializada correctamente.`);
+                    }
+                });
+                
+                // Paso 3: Actualizar semestre máximo en configuración según las materias cargadas
+                const maxSemestre = estado.materias.reduce((max, materia) => 
+                    Math.max(max, materia.semestre || 1), 1);
+                
+                // Actualizar la configuración si es necesario
+                if (maxSemestre > estado.configuracion.cantidadSemestres) {
+                    console.log(`Actualizando cantidad de semestres en configuración de ${estado.configuracion.cantidadSemestres} a ${maxSemestre} según las materias cargadas`);
+                    estado.configuracion.cantidadSemestres = maxSemestre;
+                    
+                    // Actualizar el campo en la interfaz si está disponible
+                    const semestreInput = document.getElementById('cantidadSemestres');
+                    if (semestreInput) {
+                        semestreInput.value = maxSemestre;
+                    }
+                }
+                
+                console.log(`Información de materiasQueDicta actualizada para profesores: ${estado.profesores.reduce((count, prof) => count + prof.materiasQueDicta.length, 0)} asignaciones totales.`);
             }
 
             // Procesar Hoja de Alumnos (Nueva)
@@ -285,32 +373,77 @@ function generarIdUnico() {
                         const aula = estado.aulas.find(a => a.codigo === materia.aulaPreferidaCodigo);
 
                         if (profesor && aula) {
-                            // Interpretar el texto del horario. Ejemplo simple: "Lunes 08:00-10:00"
-                            // Esto necesitará una lógica de parsing más robusta.
-                            const partesHorario = materia.horarioPreferidoTexto.match(/(\S+)\s+(\d{2}:\d{2})-(\d{2}:\d{2})/);
-                            if (partesHorario && partesHorario.length === 4) {
-                                const dia = capitalizarPrimeraLetra(partesHorario[1].toLowerCase());
-                                const horaInicio = partesHorario[2];
-                                const horaFin = partesHorario[3];
-
-                                const restriccionFija = {
-                                    id: generarIdUnico(),
-                                    tipo: "horarioFijo", // Tipo específico para preasignaciones
-                                    entidad: "materia", // La restricción se aplica a una materia
-                                    entidadId: materia.id, // ID de la materia
-                                    materiaId: materia.id, // Redundante pero útil para filtros
-                                    dia: dia,
-                                    horaInicio: horaInicio,
-                                    horaFin: horaFin,
-                                    aulaId: aula.id,
-                                    profesorId: profesor.id,
-                                    esEstricta: true, // Las preasignaciones se consideran estrictas
-                                    descripcion: `Preasignación para ${materia.nombre}: ${dia} ${horaInicio}-${horaFin} en ${aula.nombre} con ${profesor.nombre}`
-                                };
-                                estado.restricciones.push(restriccionFija);
-                                console.log(`Restricción de horario fijo creada para ${materia.nombre} por preasignación.`);
-                            } else {
-                                console.warn(`Formato de horario preasignado no reconocido para ${materia.nombre}: "${materia.horarioPreferidoTexto}". Se esperaba "Día HH:MM-HH:MM".`);
+                            // Interpretar el texto del horario. Ejemplos: 
+                            // - Simple: "Lunes 08:00-10:00"
+                            // - Múltiple: "Lunes 17:00-18:00, Miércoles 17:00-18:00"
+                            
+                            // Dividir por posibles múltiples horarios (separados por comas)
+                            const horariosPosibles = materia.horarioPreferidoTexto.split(',').map(h => h.trim());
+                            let restriccionesCreadas = false;
+                            let bloquesEnHorario = 0;
+                            
+                            // Procesar cada horario individual
+                            horariosPosibles.forEach(horarioTexto => {
+                                // Regex mejorado que captura el día y las horas con mayor flexibilidad
+                                const partesHorario = horarioTexto.match(/(\S+)\s+(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/);
+                                
+                                if (partesHorario && partesHorario.length === 4) {
+                                    const dia = capitalizarPrimeraLetra(partesHorario[1].toLowerCase());
+                                    let horaInicio = partesHorario[2];
+                                    let horaFin = partesHorario[3];
+                                    
+                                    // Asegurar formato de 2 dígitos para las horas (01:00 en lugar de 1:00)
+                                    if (horaInicio.length === 4) horaInicio = "0" + horaInicio;
+                                    if (horaFin.length === 4) horaFin = "0" + horaFin;
+                                    
+                                    // Calcular la duración en bloques para la carga del profesor
+                                    let horasInicioMinutos = 0;
+                                    let horasFinMinutos = 0;
+                                    try {
+                                        const [hI, mI] = horaInicio.split(':').map(Number);
+                                        const [hF, mF] = horaFin.split(':').map(Number);
+                                        horasInicioMinutos = hI * 60 + mI;
+                                        horasFinMinutos = hF * 60 + mF;
+                                        
+                                        // Calcular bloques/horas de diferencia
+                                        const minutosDiferencia = horasFinMinutos - horasInicioMinutos;
+                                        const duracionBloque = estado.configuracion.duracionBloque || 60;
+                                        const bloquesDiferencia = Math.ceil(minutosDiferencia / duracionBloque);
+                                        
+                                        bloquesEnHorario += bloquesDiferencia;
+                                    } catch (e) {
+                                        console.error("Error calculando bloques para horario:", e);
+                                    }
+                                    
+                                    const restriccionFija = {
+                                        id: generarIdUnico(),
+                                        tipo: "horarioFijo", // Tipo específico para preasignaciones
+                                        entidad: "materia", // La restricción se aplica a una materia
+                                        entidadId: materia.id, // ID de la materia
+                                        materiaId: materia.id, // Redundante pero útil para filtros
+                                        dia: dia,
+                                        horaInicio: horaInicio,
+                                        horaFin: horaFin,
+                                        aulaId: aula.id,
+                                        profesorId: profesor.id,
+                                        semestre: materia.semestre, // Añadir el semestre para referencia
+                                        esEstricta: true, // Las preasignaciones se consideran estrictas
+                                        descripcion: `Preasignación para ${materia.nombre} (Semestre ${materia.semestre}): ${dia} ${horaInicio}-${horaFin} en ${aula.nombre} con ${profesor.nombre}`
+                                    };
+                                    estado.restricciones.push(restriccionFija);
+                                    restriccionesCreadas = true;
+                                    console.log(`Restricción de horario fijo creada para ${materia.nombre}: ${dia} ${horaInicio}-${horaFin}`);
+                                }
+                            });
+                            
+                            // Actualizar horasSemana de la materia si los bloques calculados son mayores
+                            if (bloquesEnHorario > materia.horasSemana) {
+                                console.log(`Actualizando horasSemana para materia ${materia.nombre} de ${materia.horasSemana} a ${bloquesEnHorario} basado en horarios`);
+                                materia.horasSemana = bloquesEnHorario;
+                            }
+                            
+                            if (!restriccionesCreadas) {
+                                console.warn(`Formato de horario preasignado no reconocido para ${materia.nombre}: "${materia.horarioPreferidoTexto}". Se esperaba "Día HH:MM-HH:MM" o múltiples horarios separados por comas.`);
                             }
                         } else {
                             console.warn(`No se pudo crear la restricción de horario fijo para ${materia.nombre} porque el profesor (código: ${materia.profesorPreferidoCodigo}) o el aula (código: ${materia.aulaPreferidaCodigo}) no se encontraron.`);

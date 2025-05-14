@@ -114,7 +114,7 @@
             document.getElementById('diaRestriccion').value = '';
             document.getElementById('horaRestriccion').value = '';
 
-            renderizarProfesores(); // Actualizar carga de profesores
+            actualizarCargaTrabajoDetallada(); // Actualizar solo la tabla de carga detallada
         }
 
         // Eliminar una restricción de horario fijo por índice
@@ -138,7 +138,7 @@
                     renderizarListaHorariosFijos();
                     guardarDatosLocalmente();
                     mostrarNotificacion('Éxito', 'Restricción de horario fijo eliminada.', 'success');
-                    renderizarProfesores(); // Actualizar carga de profesores
+                    actualizarCargaTrabajoDetallada(); // Actualizar sólo la tabla de carga detallada
                 }
             }
         }
@@ -293,7 +293,7 @@
             generarHorariosVisualizacion(); // Recalcular vistas por si cambió profesor/aula/materia
             actualizarHorarioVisible(); // Renderizar tabla
             actualizarEstadisticasHorario(); // Actualizar contadores
-            renderizarProfesores(); // Actualizar carga detallada
+            actualizarCargaTrabajoDetallada(); // Actualizar solo la tabla de carga detallada
             guardarDatosLocalmente();
             mostrarNotificacion('Éxito', 'Sesión actualizada correctamente.', 'success');
         }
@@ -311,7 +311,7 @@
                     generarHorariosVisualizacion();
                     actualizarHorarioVisible();
                     actualizarEstadisticasHorario();
-                    renderizarProfesores(); // Actualizar carga detallada
+                    actualizarCargaTrabajoDetallada(); // Actualizar solo la tabla de carga detallada
                     guardarDatosLocalmente();
                     mostrarNotificacion('Éxito', 'Sesión eliminada.', 'success');
                 }
@@ -319,4 +319,17 @@
                 mostrarNotificacion('Error', 'No se encontró la sesión para eliminar.', 'error');
                 cerrarModal('modalSesion');
             }
+        }
+
+        // Actualizar el estado de los botones según disponibilidad de horarios
+        function actualizarEstadoBotones() {
+            const hayHorarios = estado.horarios && Object.keys(estado.horarios).length > 0;
+            document.getElementById('optimizarHorariosBtn').disabled = !hayHorarios;
+            document.getElementById('generarHorariosBtn').disabled = false; // Siempre habilitado si hay datos
+            document.getElementById('generarHorariosBtnAlt').disabled = false;
+            document.getElementById('modoEdicionBtn').disabled = !hayHorarios;
+            document.getElementById('exportarPDFBtn').disabled = !hayHorarios; // Habilitar el botón de PDF si hay horarios
+
+            // También habilitar/desactivar botones en otras vistas según sea necesario
+            // ...
         }

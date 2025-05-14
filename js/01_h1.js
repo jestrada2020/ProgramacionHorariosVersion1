@@ -287,6 +287,43 @@
             if (resumenTbody) resumenTbody.innerHTML = resumenTbodyHtml;
         }
 
+        // Función específica para actualizar sólo la tabla de carga de trabajo detallada
+        // Útil para operaciones que no necesitan renderizar toda la tabla de profesores
+        function actualizarCargaTrabajoDetallada() {
+            // Calcular carga detallada
+            const cargaDetalladaProfesores = calcularCargaProfesoresDetallada();
+            
+            // Renderizar resumen de carga horaria detallado
+            const resumenContainer = document.getElementById('resumenCargaProfesores');
+            const resumenTbody = resumenContainer.querySelector('tbody');
+            if (!resumenTbody) return; // Si no está disponible, salir
+            
+            let resumenTbodyHtml = '';
+
+            if (estado.profesores.length > 0) {
+                estado.profesores.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(prof => {
+                    const carga = cargaDetalladaProfesores[prof.id];
+                    if (!carga) return; // Si no hay datos para este profesor
+                    resumenTbodyHtml += `<tr class="border-b border-gray-200 hover:bg-gray-100">
+                                    <td class="py-2 px-3 text-left">${prof.nombre}</td>
+                                    <td class="py-2 px-3 text-center">${carga.clases}</td>
+                                    <td class="py-2 px-3 text-center">${carga.asesoriaNormal}</td>
+                                    <td class="py-2 px-3 text-center">${carga.asesoriaEvaluacion}</td>
+                                    <td class="py-2 px-3 text-center">${carga.investigacion}</td>
+                                    <td class="py-2 px-3 text-center">${carga.proyectosInst}</td>
+                                    <td class="py-2 px-3 text-center">${carga.proyectosExt}</td>
+                                    <td class="py-2 px-3 text-center">${carga.materialDidactico}</td>
+                                    <td class="py-2 px-3 text-center">${carga.capacitacion}</td>
+                                    <td class="py-2 px-3 text-center font-bold">${carga.total}</td>
+                                    <!-- Opcional: <td class="py-2 px-3 text-center">${carga.objetivo || '-'}</td> -->
+                                  </tr>`;
+                });
+            } else {
+                resumenTbodyHtml = `<tr><td colspan="10" class="py-3 px-4 text-center text-gray-500">No hay profesores para mostrar carga.</td></tr>`;
+            }
+            
+            resumenTbody.innerHTML = resumenTbodyHtml;
+        }
 
         // Renderizar tabla de materias
         function renderizarMaterias() {
