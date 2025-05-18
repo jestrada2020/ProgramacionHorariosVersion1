@@ -101,6 +101,26 @@
             // Configuración General
             document.getElementById('periodoAcademico').value = estado.configuracion.periodoAcademico;
             document.getElementById('cantidadSemestres').value = estado.configuracion.cantidadSemestres;
+            
+            // Actualizar el selector de rango de horarios si existe
+            if (estado.configuracion.rangoHorario) {
+                document.getElementById('rangosHorarios').value = estado.configuracion.rangoHorario;
+            } else {
+                // Si no existe, detectar si coincide con algún rango predefinido
+                const rangoDetectado = detectarRangoPredefinido(
+                    estado.configuracion.horaInicio, 
+                    estado.configuracion.horaFin
+                );
+                document.getElementById('rangosHorarios').value = rangoDetectado;
+                estado.configuracion.rangoHorario = rangoDetectado;
+            }
+            
+            // Actualizar información del rango horario
+            const infoRangoHorario = document.getElementById('infoRangoHorario');
+            if (infoRangoHorario) {
+                infoRangoHorario.innerHTML = mostrarInfoRangoHorario();
+            }
+            
             document.getElementById('horaInicio').value = estado.configuracion.horaInicio;
             document.getElementById('horaFin').value = estado.configuracion.horaFin;
             document.getElementById('duracionBloque').value = estado.configuracion.duracionBloque;

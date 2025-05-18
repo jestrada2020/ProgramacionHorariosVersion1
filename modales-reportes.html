@@ -1,0 +1,41 @@
+<!-- Modal para opciones de carta docente -->
+    <div id="modalCartaDocente" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center hidden z-50 no-print">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 md:w-1/3 max-h-90vh overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4" id="tituloCartaDocente">Generar Carta Docente</h2>
+            <div class="mb-4">
+                <label for="cartaPageSizeModal" class="block text-gray-700 font-medium mb-2">Tamaño de página:</label>
+                <select id="cartaPageSizeModal" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="letter">Carta</option>
+                    <option value="legal">Oficio</option>
+                    <option value="a4">A4</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label for="cartaOrientationModal" class="block text-gray-700 font-medium mb-2">Orientación:</label>
+                <select id="cartaOrientationModal" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="portrait">Vertical</option>
+                    <option value="landscape">Horizontal</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label for="cartaExportTypeModal" class="block text-gray-700 font-medium mb-2">Formato:</label>
+                <select id="cartaExportTypeModal" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="pdf">PDF</option>
+                    <option value="excel">Excel</option>
+                </select>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button id="cancelarCartaBtn" type="button" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md mr-2">Cancelar</button>
+                <button id="confirmarCartaBtn" type="button" class="px-4 py-2 bg-blue-600 text-white rounded-md">Generar</button>
+            </div>
+        </div>
+    </div>
+    
+<!-- Indicador de carga para operaciones de exportación -->
+<div id="loadingIndicator" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center hidden z-50 no-print">
+    <div class="bg-white p-8 rounded-lg shadow-lg flex flex-col items-center">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-opacity-75"></div>
+        <p class="mt-4 text-lg font-semibold">Generando reporte...</p>
+        <p class="text-sm text-gray-600 mt-2">Esto puede tardar unos segundos</p>
+    </div>
+</div>

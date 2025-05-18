@@ -13,8 +13,18 @@
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
         <!-- jsPDF para exportación a PDF -->
         <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-        <!-- Opcional: jsPDF-AutoTable para facilitar la creación de tablas en PDF -->
-        <!-- <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.23/dist/jspdf.plugin.autotable.min.js"></script> -->
+        <!-- jsPDF-AutoTable para facilitar la creación de tablas en PDF -->
+        <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.23/dist/jspdf.plugin.autotable.min.js"></script>
+        <!-- Verificador de bibliotecas - Se ejecuta primero para garantizar disponibilidad -->
+        <script src="js/biblioteca-checker.js"></script>
+        <!-- Script para manejar rangos de horarios -->
+        <script src="js/rangos-horarios.js"></script>
+        <!-- Reportes mejorados con AutoTable -->
+        <script src="js/reportes-mejorados.js"></script>
+        <!-- Conexión para botones de reportes individuales -->
+        <script src="js/conexion-reportes.js"></script>
+        <!-- Herramientas de diagnóstico para reportes -->
+        <script src="js/diagnostico-reportes.js"></script>
     </head>
 
 <body class="min-h-screen">
@@ -95,16 +105,33 @@
                         </select>
                     </div>
                     <div>
+                        <label for="rangosHorarios" class="block text-gray-700 font-medium mb-2">Rango de Jornada:</label>
+                        <select id="rangosHorarios" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="6-18">06:00 AM - 18:00 PM</option>
+                            <option value="7-19" selected>07:00 AM - 19:00 PM</option>
+                            <option value="6-22">06:00 AM - 22:00 PM (Jornada Extendida)</option>
+                            <option value="7-22">07:00 AM - 22:00 PM (Jornada Extendida)</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                        <div id="infoRangoHorario" class="mt-1 text-sm"></div>
+                    </div>
+                    <div>
                         <label for="horaInicio" class="block text-gray-700 font-medium mb-2">Hora de Inicio de Jornada:</label>
                         <input type="time" id="horaInicio" value="07:00" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
                         <label for="horaFin" class="block text-gray-700 font-medium mb-2">Hora de Fin de Jornada:</label>
-                        <input type="time" id="horaFin" value="18:00" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="time" id="horaFin" value="19:00" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
                         <label for="duracionBloque" class="block text-gray-700 font-medium mb-2">Duración de Bloque (minutos):</label>
                         <input type="number" id="duracionBloque" min="30" max="120" step="15" value="60" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="col-span-1 md:col-span-3 mt-2">
+                        <div class="bg-yellow-50 p-3 rounded-md border border-yellow-200 text-sm">
+                            <p class="font-medium text-yellow-800">Nota sobre los rangos de horario:</p>
+                            <p class="text-yellow-700 mt-1">Los rangos de horario predefinidos facilitan la configuración para las jornadas más comunes. Si selecciona "Personalizado", puede definir cualquier rango de horas según sus necesidades específicas.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -265,12 +292,29 @@
                 </div>
                 <!-- Resumen Detallado Carga Laboral -->
                 <div id="resumenCargaProfesores" class="mt-6 no-print">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-2 border-t pt-4">Resumen Detallado de Carga Laboral (Horas Semanales Estimadas)</h3>
+                    <div class="flex justify-between items-center border-t pt-4 pb-2">
+                        <h3 class="text-lg font-semibold text-gray-700">Resumen Detallado de Carga Laboral (Horas Semanales Estimadas)</h3>
+                        <div class="flex space-x-2">
+                            <button id="btnReporteGlobalPDF" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
+                                </svg>
+                                Reporte PDF
+                            </button>
+                            <button id="btnReporteGlobalExcel" class="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-1 rounded flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                                Excel
+                            </button>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full bg-gray-50 text-sm">
                             <thead>
                                 <tr class="bg-gray-200 text-gray-600 uppercase text-xs leading-normal">
                                     <th class="py-2 px-3 text-left">Profesor</th>
+                                    <th class="py-2 px-3 text-center" title="Tipo de contrato del profesor">Tipo Contrato</th>
                                     <th class="py-2 px-3 text-center" title="Horas de clase asignadas según horario y duración de bloque">Clases</th>
                                     <th class="py-2 px-3 text-center" title="Horas según configuración de Asesorías Normales">Ases. Normal</th>
                                     <th class="py-2 px-3 text-center" title="Horas según configuración de Asesorías de Evaluación Diferencial">Ases. Eval.</th>
@@ -279,13 +323,15 @@
                                     <th class="py-2 px-3 text-center">Proy. Ext.</th>
                                     <th class="py-2 px-3 text-center">Mat. Didáct.</th>
                                     <th class="py-2 px-3 text-center" title="Horas de capacitación semestral prorrateadas semanalmente (asumiendo 16 semanas/semestre)">Capacitación</th>
+                                    <th class="py-2 px-3 text-center" title="Horas administrativas asignadas al profesor">Admin.</th>
+                                    <th class="py-2 px-3 text-center" title="Carga por cursos virtuales">C. Virtuales</th>
                                     <th class="py-2 px-3 text-center font-bold">Total Semanal</th>
-                                    <!-- Opcional: <th class="py-2 px-3 text-center">Objetivo</th> -->
+                                    <th class="py-2 px-3 text-center" title="Objetivo de horas para el profesor">Objetivo</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <!-- Filas generadas por JS -->
-                                <tr><td colspan="10" class="py-3 px-4 text-center text-gray-500">Calculando carga...</td></tr>
+                                <tr><td colspan="14" class="py-3 px-4 text-center text-gray-500">Calculando carga...</td></tr>
                             </tbody>
                         </table>
                         <p class="text-xs text-gray-500 mt-1">* Las horas de capacitación se prorratean asumiendo un semestre de 16 semanas.</p>
@@ -589,6 +635,17 @@
                 </div>
             </div>
 
+            <!-- Tipo de Contrato -->
+            <div class="md:col-span-2 mt-2">
+                <label for="profesorTipoContrato" class="block text-gray-700 font-medium mb-2">Tipo de Contrato:</label>
+                <select id="profesorTipoContrato" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="tiempoCompleto">Tiempo Completo</option>
+                    <option value="medioTiempo">Medio Tiempo</option>
+                    <option value="ocasional">Ocasional</option>
+                    <option value="porHoras">Por Horas</option>
+                </select>
+            </div>
+
             <!-- Nuevos campos de carga laboral -->
             <div class="border-t pt-4 mt-4 mb-4">
                 <h3 class="text-lg font-semibold text-gray-700 mb-3">Carga Laboral Adicional (Horas Semanales)</h3>
@@ -613,13 +670,19 @@
                         <label for="profesorCapacitacion" class="block text-sm font-medium text-gray-600" title="Total de horas de capacitación durante el semestre. Se prorratearán semanalmente en el resumen.">Capacitación (Semestral):</label>
                         <input type="number" id="profesorCapacitacion" min="0" step="1" value="0" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
                     </div>
+                    <div>
+                        <label for="profesorAdministrativas" class="block text-sm font-medium text-gray-600">Horas Administrativas:</label>
+                        <input type="number" id="profesorAdministrativas" min="0" step="0.5" value="0" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label for="profesorCursosVirtuales" class="block text-sm font-medium text-gray-600">Cursos Virtuales:</label>
+                        <input type="number" id="profesorCursosVirtuales" min="0" step="0.5" value="0" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
                     <!-- Opcional: Horas Objetivo -->
-                    <!--
                     <div>
                         <label for="profesorHorasObjetivo" class="block text-sm font-medium text-gray-600">Horas Objetivo Semanal:</label>
                         <input type="number" id="profesorHorasObjetivo" min="0" step="1" placeholder="Opcional" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
                     </div>
-                     -->
                 </div>
             </div>
             <!-- Fin nuevos campos -->
@@ -627,8 +690,12 @@
 
             <div class="mb-4 border-t pt-4 mt-4">
                 <label class="block text-gray-700 font-medium mb-2">Materias que puede dictar:</label>
-                <div id="profesorMateriasContainer" class="max-h-40 overflow-y-auto border rounded p-2 grid grid-cols-2 md:grid-cols-3 gap-2">
-                    <!-- Checkboxes de materias generados por JS -->
+                <div class="bg-blue-50 p-3 mb-3 rounded-md border border-blue-200">
+                    <p class="text-sm text-blue-800 mb-1 font-medium">Opciones de asignación de materias:</p>
+                    <p class="text-xs text-blue-700">Seleccione las materias que puede dictar el profesor. Para cada materia, puede indicar si es parte de su carga o si se considera un clon virtual (no se contabiliza en las horas semanales).</p>
+                </div>
+                <div id="profesorMateriasContainer" class="max-h-60 overflow-y-auto border rounded p-2">
+                    <!-- La estructura de las materias será generada por JS -->
                 </div>
             </div>
             <div class="mb-4">
@@ -894,8 +961,60 @@
         </div>
     </div>
 
+    <!-- Incluir modales de reportes -->
+    <div id="modalesReportesContainer">
+        <!-- Modal para opciones de carta docente -->
+        <div id="modalCartaDocente" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center hidden z-50 no-print">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 md:w-1/3 max-h-90vh overflow-y-auto">
+                <h2 class="text-xl font-bold mb-4" id="tituloCartaDocente">Generar Carta Docente</h2>
+                <div class="mb-4">
+                    <label for="cartaPageSizeModal" class="block text-gray-700 font-medium mb-2">Tamaño de página:</label>
+                    <select id="cartaPageSizeModal" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="letter">Carta</option>
+                        <option value="legal">Oficio</option>
+                        <option value="a4">A4</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="cartaOrientationModal" class="block text-gray-700 font-medium mb-2">Orientación:</label>
+                    <select id="cartaOrientationModal" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="portrait">Vertical</option>
+                        <option value="landscape">Horizontal</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="cartaExportTypeModal" class="block text-gray-700 font-medium mb-2">Formato:</label>
+                    <select id="cartaExportTypeModal" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="pdf">PDF</option>
+                        <option value="excel">Excel</option>
+                    </select>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button id="cancelarCartaBtn" type="button" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md mr-2">Cancelar</button>
+                    <button id="confirmarCartaBtn" type="button" class="px-4 py-2 bg-blue-600 text-white rounded-md">Generar</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Indicador de carga para operaciones de exportación -->
+        <div id="loadingIndicator" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center hidden z-50 no-print">
+            <div class="bg-white p-8 rounded-lg shadow-lg flex flex-col items-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-opacity-75"></div>
+                <p class="mt-4 text-lg font-semibold">Generando reporte...</p>
+                <p class="text-sm text-gray-600 mt-2">Esto puede tardar unos segundos</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Script principal -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.1/math.min.js"></script>
+    <!-- Librería para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <!-- Librería para Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Scripts de la aplicación -->
     <script src="js/01_h1.js"></script>
     <script src="js/02_h2.js"></script>
     <script src="js/03_h3.js"></script>
@@ -908,6 +1027,104 @@
     <script src="js/10_h10.js"></script>
     <script src="js/11_h11.js"></script>
     <script src="js/12_h12.js"></script>
+    <script src="js/reportes.js"></script>
+    
+    <script>
+        // Configurar eventos de botones de reportes
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar eventos para los botones de reportes globales
+            const btnReporteGlobalPDF = document.getElementById('btnReporteGlobalPDF');
+            if (btnReporteGlobalPDF) {
+                btnReporteGlobalPDF.addEventListener('click', function() {
+                    const modal = document.getElementById('modalCartaDocente');
+                    if (!modal) {
+                        console.error("[Reportes] Modal 'modalCartaDocente' no encontrado.");
+                        mostrarNotificacion('Error', 'No se pudo abrir el modal de opciones.', 'error');
+                        return;
+                    }
+                    modal.dataset.tipoReporte = 'global';
+                    const tituloModal = document.getElementById('tituloCartaDocente');
+                    if(tituloModal) tituloModal.textContent = 'Generar Reporte Global de Carga Docente';
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                });
+            }
+            
+            const btnReporteGlobalExcel = document.getElementById('btnReporteGlobalExcel');
+            if (btnReporteGlobalExcel) {
+                btnReporteGlobalExcel.addEventListener('click', generarReporteGlobalExcel);
+            }
+            
+            const cancelarCartaBtn = document.getElementById('cancelarCartaBtn');
+            if (cancelarCartaBtn) {
+                cancelarCartaBtn.addEventListener('click', () => cerrarModal('modalCartaDocente'));
+            }
+            
+            const confirmarCartaBtn = document.getElementById('confirmarCartaBtn');
+            if (confirmarCartaBtn) {
+                confirmarCartaBtn.addEventListener('click', function() {
+                    console.log("[Reportes] Botón 'Generar' presionado");
+                    const modal = document.getElementById('modalCartaDocente');
+                    if (!modal) {
+                        console.error("[Reportes] Modal 'modalCartaDocente' no encontrado.");
+                        return;
+                    }
+                    
+                    const tipoReporte = modal.dataset.tipoReporte || 'global';
+                    const profesorId = modal.dataset.profesorId || null;
+                    const formato = document.getElementById('cartaExportTypeModal')?.value || 'pdf';
+                    
+                    console.log(`[Reportes] Generando reporte: tipo=${tipoReporte}, profesorId=${profesorId}, formato=${formato}`);
+                    
+                    // Primero cerramos el modal y mostramos el indicador de carga
+                    cerrarModal('modalCartaDocente');
+                    mostrarCargando(true);
+                    
+                    // Esperamos un momento para que la UI se actualice
+                    setTimeout(() => {
+                        try {
+                            console.log("[Reportes] Iniciando generación de reporte...");
+                            
+                            if (formato === 'pdf') {
+                                console.log("[Reportes] Generando reporte PDF");
+                                // Usar la nueva implementación mejorada para PDF
+                                if (tipoReporte === 'individual' && profesorId) {
+                                    if (typeof generarReporteCargaDocenteMejorado !== 'function') {
+                                        throw new Error("La función generarReporteCargaDocenteMejorado no está disponible");
+                                    }
+                                    generarReporteCargaDocenteMejorado(profesorId);
+                                } else {
+                                    if (typeof generarReporteCargaDocenteMejorado !== 'function') {
+                                        throw new Error("La función generarReporteCargaDocenteMejorado no está disponible");
+                                    }
+                                    generarReporteCargaDocenteMejorado();
+                                }
+                            } else if (formato === 'excel') {
+                                console.log("[Reportes] Generando reporte Excel");
+                                // Usar implementación original para Excel
+                                if (tipoReporte === 'individual' && profesorId) {
+                                    if (typeof generarCartaDocenteExcel !== 'function') {
+                                        throw new Error("La función generarCartaDocenteExcel no está disponible");
+                                    }
+                                    generarCartaDocenteExcel(profesorId);
+                                } else {
+                                    if (typeof generarReporteGlobalExcel !== 'function') {
+                                        throw new Error("La función generarReporteGlobalExcel no está disponible");
+                                    }
+                                    generarReporteGlobalExcel();
+                                }
+                            } else {
+                                throw new Error(`Formato de reporte no soportado: ${formato}`);
+                            }
+                        } catch (error) {
+                            console.error("[Reportes] Error generando reporte:", error);
+                            mostrarNotificacion('Error', `Error al generar reporte: ${error.message || error}`, 'error');
+                            mostrarCargando(false);
+                        }
+                    }, 100);
+                });
+            }
+        });
+    </script>
 </body>
 </html>
-

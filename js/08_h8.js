@@ -38,9 +38,19 @@
         }
 
         // Busca un aula disponible (considerando tipo y disponibilidad global)
-        function buscarAulaDisponible(dia, hora, tipoRequerido, semestre = null) {
+        function buscarAulaDisponible(dia, hora, tipoRequerido, semestre = null, esVirtual = false) {
             // DEPURACIÓN
-            console.log(`Buscando aula para tipo ${tipoRequerido} en ${dia} ${hora}`);
+            console.log(`Buscando aula para tipo ${tipoRequerido} en ${dia} ${hora}${esVirtual ? ' (curso virtual)' : ''}`);
+            
+            // Para cursos virtuales, devolver un objeto de aula especial con "pendiente"
+            if (esVirtual) {
+                console.log('Asignando aula "pendiente" para curso virtual');
+                return {
+                    id: 'virtual-pendiente',
+                    nombre: 'Pendiente',
+                    tipo: 'virtual'
+                };
+            }
             
             // Si el tipo requerido no está definido, asumir 'normal' para evitar errores
             if (!tipoRequerido) {

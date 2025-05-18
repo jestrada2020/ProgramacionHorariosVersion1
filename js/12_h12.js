@@ -67,30 +67,41 @@
             const cantidadAnterior = estado.configuracion.cantidadSemestres;
             estado.configuracion.cantidadSemestres = nuevaCantidadSemestres;
             
+            // Guardar el valor del rango de horarios seleccionado
+            const nuevoRangoHorario = document.getElementById('rangosHorarios').value;
+            estado.configuracion.rangoHorario = nuevoRangoHorario;
+            
             // Actualizar hora de inicio y fin, con validación
             const nuevoHoraInicio = document.getElementById('horaInicio').value;
             const nuevoHoraFin = document.getElementById('horaFin').value;
             
-            // Verificar que la hora de fin sea posterior a la de inicio
-            let horaInicioMinutos = 0;
-            let horaFinMinutos = 0;
+            // Validar el rango horario usando la función dedicada
+            const validacionRango = validarRangoHorario(nuevoHoraInicio, nuevoHoraFin);
             
-            try {
-                const [hI, mI] = nuevoHoraInicio.split(':').map(Number);
-                const [hF, mF] = nuevoHoraFin.split(':').map(Number);
-                horaInicioMinutos = hI * 60 + mI;
-                horaFinMinutos = hF * 60 + mF;
-            } catch(e) {
-                console.error("Error en formato de horas:", e);
-            }
-            
-            if (horaFinMinutos <= horaInicioMinutos) {
+            // Verificar que el rango sea válido usando la validación previa
+            if (!validacionRango.valido) {
                 mostrarNotificacion('Error', 'La hora de fin debe ser posterior a la hora de inicio.', 'error');
                 // Mantener valores anteriores
                 document.getElementById('horaFin').value = estado.configuracion.horaFin;
             } else {
+                // Actualizar los valores
                 estado.configuracion.horaInicio = nuevoHoraInicio;
                 estado.configuracion.horaFin = nuevoHoraFin;
+                
+                // Actualizar información del rango horario
+                const infoRangoHorario = document.getElementById('infoRangoHorario');
+                if (infoRangoHorario) {
+                    infoRangoHorario.innerHTML = mostrarInfoRangoHorario();
+                }
+                
+                // Si los horarios cambiaron pero el tipo de rango no, asegurarnos de establecer en "custom"
+                if (nuevoRangoHorario !== "custom") {
+                    const rangoDetectado = detectarRangoPredefinido(nuevoHoraInicio, nuevoHoraFin);
+                    if (rangoDetectado !== nuevoRangoHorario) {
+                        document.getElementById('rangosHorarios').value = rangoDetectado;
+                        estado.configuracion.rangoHorario = rangoDetectado;
+                    }
+                }
             }
             
             estado.configuracion.duracionBloque = parseInt(document.getElementById('duracionBloque').value) || 60;
@@ -263,6 +274,17 @@
                 // Buscar materias que este profesor tiene asignadas
                 if (prof.materiasQueDicta && Array.isArray(prof.materiasQueDicta)) {
                     prof.materiasQueDicta.forEach(materiaId => {
+                        // Comprobar si esta materia es parte de la carga del profesor
+                        const materiasDetalle = prof.materiasDetalle && prof.materiasDetalle[materiaId];
+                        const esVirtual = materiasDetalle && materiasDetalle.esVirtual;
+                        const partOfLoad = materiasDetalle && materiasDetalle.partOfLoad;
+                        
+                        // Solo contabilizar si está marcada explícitamente como parte de la carga del profesor
+                        // o si no está marcada como virtual (retrocompatibilidad)
+                        if (!(partOfLoad || (!esVirtual && !partOfLoad))) {
+                            return;
+                        }
+                        
                         const materia = estado.materias.find(m => m.id === materiaId);
                         if (materia) {
                             // Si no hay horarios generados, o si este profesor tiene la materia asignada directamente
@@ -297,9 +319,37 @@
                 const horasProyExt = prof.horasProyectosExtSemanal || 0;
                 const horasMaterial = prof.horasMaterialDidacticoSemanal || 0;
                 const horasCapacitacion = (prof.horasCapacitacionSemestral || 0) / semanasPorSemestre;
+                const horasAdministrativas = prof.horasAdministrativas || 0;
+                const cursosVirtuales = prof.cursosVirtuales || 0;
 
                 const totalHoras = horasClase + horasAsesNormal + horasAsesEval + horasInvestigacion +
-                                 horasProyInst + horasProyExt + horasMaterial + horasCapacitacion;
+                                 horasProyInst + horasProyExt + horasMaterial + horasCapacitacion +
+                                 horasAdministrativas + cursosVirtuales;
+                
+                // Determinar la carga horaria máxima según tipo de contrato
+                let cargaMaxima = 0;
+                switch(prof.tipoContrato) {
+                    case 'tiempoCompleto': 
+                        cargaMaxima = 40; // 40 horas semanales para tiempo completo
+                        break;
+                    case 'medioTiempo': 
+                        cargaMaxima = 20; // 20 horas semanales para medio tiempo
+                        break;
+                    case 'ocasional':
+                        cargaMaxima = 20; // 20 horas semanales para profesor ocasional
+                        break;
+                    case 'porHoras':
+                        cargaMaxima = 12; // 12 horas semanales para profesores por horas
+                        break;
+                    default:
+                        cargaMaxima = 40; // Por defecto, asumir tiempo completo
+                }
+                
+                // Calcular horas extras (con precisión de 2 decimales para evitar errores de redondeo)
+                const horasExtras = Math.max(0, parseFloat((totalHoras - cargaMaxima).toFixed(2)));
+                
+                // Calcular el porcentaje de ocupación respecto a la carga máxima
+                const porcentajeOcupacion = (cargaMaxima > 0) ? (Math.min(totalHoras, cargaMaxima) / cargaMaxima * 100) : 0;
 
                 cargaDetallada[prof.id] = {
                     clases: horasClase.toFixed(1),
@@ -310,8 +360,14 @@
                     proyectosExt: horasProyExt.toFixed(1),
                     materialDidactico: horasMaterial.toFixed(1),
                     capacitacion: horasCapacitacion.toFixed(1),
+                    administrativas: horasAdministrativas.toFixed(1),
+                    cursosVirtuales: cursosVirtuales.toFixed(1),
+                    tipoContrato: prof.tipoContrato || 'tiempoCompleto',
+                    cargaMaxima: cargaMaxima,
+                    horasExtras: horasExtras.toFixed(1),
+                    porcentajeOcupacion: porcentajeOcupacion.toFixed(1),
                     total: totalHoras.toFixed(1),
-                    // opcional: objetivo: prof.horasObjetivoSemanal || null
+                    objetivo: prof.horasObjetivoSemanal || null
                 };
             });
             return cargaDetallada;

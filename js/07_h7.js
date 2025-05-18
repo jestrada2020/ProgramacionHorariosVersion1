@@ -444,13 +444,18 @@
                 for (const dia of diasHabiles) {
                     if (horasFaltantes <= 0) break;
                     for (const hora of horasPorDia) {
-                        if (horasFaltantes <= 0) break;
-
-                        // Verificar si el slot está libre EN ESTE SEMESTRE
+                        if (horasFaltantes <= 0) break;                            // Verificar si el slot está libre EN ESTE SEMESTRE
                         if (!estado.horarios[semestre]?.[dia]?.[hora]) {
                             // Buscar profesor y aula disponibles GLOBALMENTE
                             const profesor = buscarProfesorDisponible(dia, hora, materia, semestre);
-                            const aula = buscarAulaDisponible(dia, hora, materia.tipoAula, semestre);
+                            
+                            // Verificar si es un curso virtual para este profesor
+                            let esVirtual = false;
+                            if (profesor && profesor.materiasDetalle && profesor.materiasDetalle[materia.id]) {
+                                esVirtual = profesor.materiasDetalle[materia.id].esVirtual || false;
+                            }
+                            
+                            const aula = buscarAulaDisponible(dia, hora, materia.tipoAula, semestre, esVirtual);
 
                             if (profesor && aula) {
                                 // Inicializar estructura si no existe
@@ -572,6 +577,40 @@
             // DEPURACIÓN
             console.log(`Buscando profesor para materia ${materia.nombre} (ID: ${materia.id}) en ${dia} ${hora} semestre ${semestre}`);
             
+            // Primero: Si la materia tiene un profesor obligatorio (profesorPreferidoCodigo),
+            // intentar asignarlo directamente si está disponible
+            if (materia.profesorPreferidoCodigo) {
+                const profesorObligatorio = estado.profesores.find(p => p.codigo === materia.profesorPreferidoCodigo);
+                
+                if (profesorObligatorio) {
+                    console.log(`La materia ${materia.nombre} tiene un profesor obligatorio: ${profesorObligatorio.nombre}`);
+                    
+                    // Asegurarse de que la materia esté en la lista de materias que el profesor puede dictar
+                    if (!profesorObligatorio.materiasQueDicta) profesorObligatorio.materiasQueDicta = [];
+                    if (!profesorObligatorio.materiasQueDicta.includes(materia.id)) {
+                        profesorObligatorio.materiasQueDicta.push(materia.id);
+                        console.log(`Se ha añadido la materia ${materia.nombre} a las materias que puede dictar ${profesorObligatorio.nombre}`);
+                    }
+                    
+                    // Marcar la materia como obligatoria en los detalles del profesor
+                    if (!profesorObligatorio.materiasDetalle) profesorObligatorio.materiasDetalle = {};
+                    if (!profesorObligatorio.materiasDetalle[materia.id]) {
+                        profesorObligatorio.materiasDetalle[materia.id] = {};
+                    }
+                    profesorObligatorio.materiasDetalle[materia.id].esObligatoria = true;
+                    profesorObligatorio.materiasDetalle[materia.id].partOfLoad = true;
+                    
+                    // Verificar si el profesor está disponible
+                    if (estaProfesorDisponible(profesorObligatorio, dia, hora, semestre)) {
+                        console.log(`El profesor obligatorio ${profesorObligatorio.nombre} está disponible y será asignado`);
+                        return profesorObligatorio;
+                    } else {
+                        console.warn(`El profesor obligatorio ${profesorObligatorio.nombre} NO está disponible`);
+                        // No retornar null aquí, intentar con otros profesores
+                    }
+                }
+            }
+            
             // 1. Filtrar profesores que PUEDEN dictar la materia
             const profesoresAsignados = estado.profesores.filter(p => p.materiasQueDicta?.includes(materia.id));
             
@@ -585,23 +624,6 @@
                         console.log(`Profesor ${p.nombre} (${p.codigo}) no tiene materiasQueDicta definido`);
                     }
                 });
-                
-                // Si no hay profesores asignados, pero existe un profesorPreferidoCodigo, buscar ese profesor
-                if (materia.profesorPreferidoCodigo) {
-                    const profesorPreferido = estado.profesores.find(p => p.codigo === materia.profesorPreferidoCodigo);
-                    if (profesorPreferido) {
-                        console.log(`Se encontró profesor preferido ${profesorPreferido.nombre} por código, pero no está en su lista materiasQueDicta`);
-                        // Corregir el problema añadiendo la materia a las que puede dictar
-                        if (!profesorPreferido.materiasQueDicta) profesorPreferido.materiasQueDicta = [];
-                        if (!profesorPreferido.materiasQueDicta.includes(materia.id)) {
-                            profesorPreferido.materiasQueDicta.push(materia.id);
-                            console.log(`Se ha añadido la materia ${materia.id} a las materias que puede dictar ${profesorPreferido.nombre}`);
-                        }
-                        if (estaProfesorDisponible(profesorPreferido, dia, hora, semestre)) {
-                            return profesorPreferido;
-                        }
-                    }
-                }
                 return null;
             }
             

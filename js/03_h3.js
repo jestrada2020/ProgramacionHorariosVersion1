@@ -34,27 +34,108 @@
                 proyExtInput.value = profesor.horasProyectosExtSemanal || 0;
                 materialInput.value = profesor.horasMaterialDidacticoSemanal || 0;
                 capacitacionInput.value = profesor.horasCapacitacionSemestral || 0;
-                // if (horasObjetivoInput) horasObjetivoInput.value = profesor.horasObjetivoSemanal || '';
+                
+                // Cargar los nuevos campos
+                const horasObjetivoInput = document.getElementById('profesorHorasObjetivo');
+                const tipoContratoInput = document.getElementById('profesorTipoContrato');
+                const horasAdministrativasInput = document.getElementById('profesorAdministrativas');
+                const cursosVirtualesInput = document.getElementById('profesorCursosVirtuales');
+                
+                if (horasObjetivoInput) horasObjetivoInput.value = profesor.horasObjetivoSemanal || '';
+                if (tipoContratoInput) tipoContratoInput.value = profesor.tipoContrato || 'tiempoCompleto';
+                if (horasAdministrativasInput) horasAdministrativasInput.value = profesor.horasAdministrativas || 0;
+                if (cursosVirtualesInput) cursosVirtualesInput.value = profesor.cursosVirtuales || 0;
 
                 // Cargar materias que dicta
                 materiasContainer.innerHTML = ''; // Limpiar
+                
+                // Crear tabla con columnas para carga y clon virtual
+                let materiasHtml = `
+                <div class="bg-yellow-50 p-3 mb-3 rounded-md border border-yellow-200">
+                    <p class="text-sm text-yellow-800 mb-1 font-medium">Información sobre clones virtuales:</p>
+                    <p class="text-xs text-yellow-700">Un "clon virtual" es una materia que el profesor puede dictar pero que no se contabiliza dentro de su carga laboral normal.</p>
+                    <p class="text-xs text-yellow-700 mt-1">Las aulas para cursos virtuales se definirán como "pendiente" en el horario hasta su asignación definitiva.</p>
+                </div>
+                <div class="grid grid-cols-4 gap-2 mb-2 bg-gray-100 p-1 text-xs font-medium">
+                    <div>Materia</div>
+                    <div class="text-center">Puede dictar</div>
+                    <div class="text-center">Carga normal</div>
+                    <div class="text-center">Clon virtual</div>
+                </div>
+                <div class="max-h-60 overflow-y-auto">
+                `;
+                
                 estado.materias.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(materia => {
+                    // Verificar si la materia está en la lista de materias que dicta el profesor
+                    const materiaInfo = profesor.materiasDetalle && profesor.materiasDetalle[materia.id] ? profesor.materiasDetalle[materia.id] : {};
                     const isChecked = profesor.materiasQueDicta?.includes(materia.id) ?? false;
-                    materiasContainer.innerHTML += `
-                        <div class="flex items-center">
-                            <input type="checkbox" id="profMat-${materia.id}" value="${materia.id}" class="mr-1 prof-materia-check" ${isChecked ? 'checked' : ''}>
-                            <label for="profMat-${materia.id}" class="text-sm" title="${materia.nombre} (Sem ${materia.semestre})">${materia.nombre}</label>
+                    const isVirtual = materiaInfo.esVirtual || false;
+                    const isPartOfLoad = materiaInfo.partOfLoad || false;
+                    
+                    // Determinar si es una materia obligatoria para este profesor
+                    // (esto se determinaría normalmente por profesorPreferidoCodigo en la materia, pero simplificamos usando esObligatoria)
+                    const isRequired = materiaInfo.esObligatoria || false;
+                    
+                    materiasHtml += `
+                        <div class="grid grid-cols-4 gap-2 items-center border-b border-gray-100 py-1 ${isRequired ? 'bg-blue-50' : ''}">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="profMat-${materia.id}" value="${materia.id}" data-materia-id="${materia.id}" 
+                                    class="mr-1 prof-materia-check" ${isChecked ? 'checked' : ''} ${isRequired ? 'checked disabled' : ''}>
+                                <label for="profMat-${materia.id}" class="text-sm" title="${materia.nombre} (Sem ${materia.semestre})">
+                                    ${materia.nombre} ${isRequired ? '<span class="text-xs text-blue-600">(obligatoria)</span>' : ''}
+                                </label>
+                            </div>
+                            <div class="text-center">
+                                ${isChecked || isRequired ? '✓' : '-'}
+                            </div>
+                            <div class="text-center">
+                                <input type="checkbox" id="profMatCarga-${materia.id}" name="profMatLoad-${materia.id}" 
+                                    class="materia-carga-check" ${(isPartOfLoad || (!isVirtual && isChecked) || isRequired) ? 'checked' : ''} 
+                                    ${!isChecked && !isRequired ? 'disabled' : ''} 
+                                    ${isRequired ? 'checked disabled' : ''}>
+                            </div>
+                            <div class="text-center">
+                                <input type="checkbox" id="profMatVirtual-${materia.id}" name="profMatVirtual-${materia.id}" 
+                                    class="materia-virtual-check" ${isVirtual ? 'checked' : ''} 
+                                    ${!isChecked && !isRequired ? 'disabled' : ''}>
+                            </div>
                         </div>
                     `;
                 });
-
-                // Cargar disponibilidad guardada
-                checkboxesDisp.forEach(chk => {
-                    const dia = chk.dataset.dia;
-                    const turno = chk.dataset.turno;
-                    chk.checked = profesor.diasDisponibles?.[dia]?.[turno] ?? false; // Usar valor guardado o false
+                
+                materiasHtml += '</div>';
+                materiasContainer.innerHTML = materiasHtml;
+                
+                // Agregar listeners para activar/desactivar los checkboxes según el estado del checkbox principal
+                const materiaChecks = materiasContainer.querySelectorAll('.prof-materia-check');
+                materiaChecks.forEach(check => {
+                    check.addEventListener('change', function() {
+                        if (this.disabled) return; // No cambiar nada si es una materia obligatoria
+                        
+                        const materiaId = this.dataset.materiaId;
+                        const checkCarga = document.getElementById(`profMatCarga-${materiaId}`);
+                        const checkVirtual = document.getElementById(`profMatVirtual-${materiaId}`);
+                        
+                        if (this.checked) {
+                            // Habilitar los checkboxes y seleccionar "Carga" por defecto
+                            checkCarga.disabled = false;
+                            checkVirtual.disabled = false;
+                            checkCarga.checked = true;
+                        } else {
+                            // Deshabilitar los checkboxes
+                            checkCarga.disabled = true;
+                            checkVirtual.disabled = true;
+                            checkCarga.checked = false;
+                            checkVirtual.checked = false;
+                        }
+                    });
                 });
 
+                // Establecer disponibilidad por defecto (ej. L-V Mañana y Tarde)
+                checkboxesDisp.forEach(chk => {
+                    const dia = chk.dataset.dia;
+                    chk.checked = (dia !== 'Sábado'); // Marcar L-V por defecto
+                });
             } else { // Modo Añadir
                 titulo.textContent = 'Añadir Nuevo Profesor';
                 codigoInput.value = '';
@@ -69,17 +150,89 @@
                 proyExtInput.value = 0;
                 materialInput.value = 0;
                 capacitacionInput.value = 0;
-                // if (horasObjetivoInput) horasObjetivoInput.value = '';
+                
+                // Resetear los nuevos campos
+                const horasObjetivoInput = document.getElementById('profesorHorasObjetivo');
+                const tipoContratoInput = document.getElementById('profesorTipoContrato');
+                const horasAdministrativasInput = document.getElementById('profesorAdministrativas');
+                const cursosVirtualesInput = document.getElementById('profesorCursosVirtuales');
+                
+                if (horasObjetivoInput) horasObjetivoInput.value = '';
+                if (tipoContratoInput) tipoContratoInput.value = 'tiempoCompleto'; // Valor por defecto
+                if (horasAdministrativasInput) horasAdministrativasInput.value = 0;
+                if (cursosVirtualesInput) cursosVirtualesInput.value = 0;
 
                 // Cargar materias (ninguna seleccionada por defecto)
                 materiasContainer.innerHTML = ''; // Limpiar
-                 estado.materias.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(materia => {
-                    materiasContainer.innerHTML += `
-                        <div class="flex items-center">
-                            <input type="checkbox" id="profMat-${materia.id}" value="${materia.id}" class="mr-1 prof-materia-check">
-                            <label for="profMat-${materia.id}" class="text-sm" title="${materia.nombre} (Sem ${materia.semestre})">${materia.nombre}</label>
+                
+                // Crear tabla con columnas para carga y clon virtual
+                let materiasHtml = `
+                <div class="bg-yellow-50 p-3 mb-3 rounded-md border border-yellow-200">
+                    <p class="text-sm text-yellow-800 mb-1 font-medium">Información sobre clones virtuales:</p>
+                    <p class="text-xs text-yellow-700">Un "clon virtual" es una materia que el profesor puede dictar pero que no se contabiliza dentro de su carga laboral normal.</p>
+                    <p class="text-xs text-yellow-700 mt-1">Las aulas para cursos virtuales se definirán como "pendiente" en el horario hasta su asignación definitiva.</p>
+                </div>
+                <div class="grid grid-cols-4 gap-2 mb-2 bg-gray-100 p-1 text-xs font-medium">
+                    <div>Materia</div>
+                    <div class="text-center">Puede dictar</div>
+                    <div class="text-center">Carga normal</div>
+                    <div class="text-center">Clon virtual</div>
+                </div>
+                <div class="max-h-60 overflow-y-auto">
+                `;
+                
+                estado.materias.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(materia => {
+                    // Determinar si esta materia es obligatoria para este profesor
+                    const isRequired = materia.profesorPreferidoCodigo && materia.profesorPreferidoCodigo === codigo;
+                    
+                    materiasHtml += `
+                        <div class="grid grid-cols-4 gap-2 items-center border-b border-gray-100 py-1 ${isRequired ? 'bg-blue-50' : ''}">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="profMat-${materia.id}" value="${materia.id}" data-materia-id="${materia.id}" 
+                                    class="mr-1 prof-materia-check" ${isRequired ? 'checked disabled' : ''}>
+                                <label for="profMat-${materia.id}" class="text-sm" title="${materia.nombre} (Sem ${materia.semestre})">
+                                    ${materia.nombre} ${isRequired ? '<span class="text-xs text-blue-600">(obligatoria)</span>' : ''}
+                                </label>
+                            </div>
+                            <div class="text-center">
+                                ${isRequired ? '✓' : '-'}
+                            </div>
+                            <div class="text-center">
+                                <input type="checkbox" id="profMatCarga-${materia.id}" name="profMatLoad-${materia.id}" 
+                                    class="materia-carga-check" ${isRequired ? 'checked disabled' : 'disabled'}>
+                            </div>
+                            <div class="text-center">
+                                <input type="checkbox" id="profMatVirtual-${materia.id}" name="profMatVirtual-${materia.id}" 
+                                    class="materia-virtual-check" ${isRequired ? 'disabled' : 'disabled'}>
+                            </div>
                         </div>
                     `;
+                });
+                
+                materiasHtml += '</div>';
+                materiasContainer.innerHTML = materiasHtml;
+                
+                // Agregar listeners para activar/desactivar los checkboxes según el estado del checkbox principal
+                const materiaChecks = materiasContainer.querySelectorAll('.prof-materia-check');
+                materiaChecks.forEach(check => {
+                    check.addEventListener('change', function() {
+                        const materiaId = this.dataset.materiaId;
+                        const checkCarga = document.getElementById(`profMatCarga-${materiaId}`);
+                        const checkVirtual = document.getElementById(`profMatVirtual-${materiaId}`);
+                        
+                        if (this.checked) {
+                            // Habilitar los checkboxes y seleccionar "Carga" por defecto
+                            checkCarga.disabled = false;
+                            checkVirtual.disabled = false;
+                            checkCarga.checked = true;
+                        } else {
+                            // Deshabilitar los checkboxes
+                            checkCarga.disabled = true;
+                            checkVirtual.disabled = true;
+                            checkCarga.checked = false;
+                            checkVirtual.checked = false;
+                        }
+                    });
                 });
 
 
@@ -107,8 +260,13 @@
             const horasProyectosExtSemanal = parseFloat(document.getElementById('profesorProyectosExt').value) || 0;
             const horasMaterialDidacticoSemanal = parseFloat(document.getElementById('profesorMaterial').value) || 0;
             const horasCapacitacionSemestral = parseFloat(document.getElementById('profesorCapacitacion').value) || 0;
-            // const horasObjetivoSemanalInput = document.getElementById('profesorHorasObjetivo'); // Opcional
-            // const horasObjetivoSemanal = horasObjetivoSemanalInput ? (parseFloat(horasObjetivoSemanalInput.value) || null) : null;
+            
+            // Leer nuevos campos
+            const horasObjetivoSemanalInput = document.getElementById('profesorHorasObjetivo');
+            const horasObjetivoSemanal = horasObjetivoSemanalInput ? (parseFloat(horasObjetivoSemanalInput.value) || null) : null;
+            const tipoContrato = document.getElementById('profesorTipoContrato').value;
+            const horasAdministrativas = parseFloat(document.getElementById('profesorAdministrativas').value) || 0;
+            const cursosVirtuales = parseFloat(document.getElementById('profesorCursosVirtuales').value) || 0;
 
             if (!codigo || !nombre) {
                 mostrarNotificacion('Error', 'El código y el nombre son obligatorios.', 'error');
@@ -122,9 +280,29 @@
                  return;
             }
 
-            // Recopilar materias seleccionadas
+            // Recopilar materias seleccionadas y su configuración (carga normal, virtual o ambas)
             const materiasQueDicta = [];
-            materiasChecks.forEach(chk => materiasQueDicta.push(chk.value));
+            const materiasDetalle = {};
+            
+            materiasChecks.forEach(chk => {
+                if (chk.checked) {
+                    const materiaId = chk.value;
+                    materiasQueDicta.push(materiaId);
+                    
+                    // Verificar si es virtual y/o parte de la carga normal
+                    const esVirtual = document.getElementById(`profMatVirtual-${materiaId}`).checked;
+                    const partOfLoad = document.getElementById(`profMatCarga-${materiaId}`).checked;
+                    
+                    // Verificar si es una materia obligatoria (el checkbox estaba deshabilitado)
+                    const esObligatoria = chk.disabled;
+                    
+                    materiasDetalle[materiaId] = {
+                        esVirtual: esVirtual,
+                        partOfLoad: partOfLoad,
+                        esObligatoria: esObligatoria
+                    };
+                }
+            });
 
             // Recopilar disponibilidad
             const diasDisponibles = {};
@@ -146,13 +324,20 @@
                     profesor.especialidad = especialidad;
                     profesor.diasDisponibles = diasDisponibles;
                     profesor.materiasQueDicta = materiasQueDicta;
+                    profesor.materiasDetalle = materiasDetalle;
                     // Actualizar carga laboral
                     profesor.horasInvestigacionSemanal = horasInvestigacionSemanal;
                     profesor.horasProyectosInstSemanal = horasProyectosInstSemanal;
                     profesor.horasProyectosExtSemanal = horasProyectosExtSemanal;
                     profesor.horasMaterialDidacticoSemanal = horasMaterialDidacticoSemanal;
                     profesor.horasCapacitacionSemestral = horasCapacitacionSemestral;
-                    // profesor.horasObjetivoSemanal = horasObjetivoSemanal; // Opcional
+                    
+                    // Actualizar nuevos campos
+                    profesor.horasObjetivoSemanal = horasObjetivoSemanal; 
+                    profesor.tipoContrato = tipoContrato;
+                    profesor.horasAdministrativas = horasAdministrativas;
+                    profesor.cursosVirtuales = cursosVirtuales;
+                    
                     mostrarNotificacion('Éxito', 'Profesor actualizado correctamente.', 'success');
                 }
             } else { // Añadir
@@ -164,13 +349,20 @@
                     especialidad: especialidad,
                     diasDisponibles: diasDisponibles,
                     materiasQueDicta: materiasQueDicta,
+                    materiasDetalle: materiasDetalle,
+                    
                     // Añadir carga laboral
                     horasInvestigacionSemanal: horasInvestigacionSemanal,
                     horasProyectosInstSemanal: horasProyectosInstSemanal,
                     horasProyectosExtSemanal: horasProyectosExtSemanal,
                     horasMaterialDidacticoSemanal: horasMaterialDidacticoSemanal,
                     horasCapacitacionSemestral: horasCapacitacionSemestral,
-                    // horasObjetivoSemanal: horasObjetivoSemanal // Opcional
+                    
+                    // Añadir nuevos campos
+                    horasObjetivoSemanal: horasObjetivoSemanal,
+                    tipoContrato: tipoContrato,
+                    horasAdministrativas: horasAdministrativas,
+                    cursosVirtuales: cursosVirtuales
                 });
                 mostrarNotificacion('Éxito', 'Profesor añadido correctamente.', 'success');
             }
