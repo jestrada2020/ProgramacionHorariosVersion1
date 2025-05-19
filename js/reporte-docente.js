@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const hoy = new Date();
         const opcionesFecha = { year: 'numeric', month: 'long', day: 'numeric' };
-        cartaLugarFecha.textContent = `Lugar y Fecha: Bogotá, ${hoy.toLocaleDateString('es-ES', opcionesFecha)}`;
+        cartaLugarFecha.textContent = `Lugar y Fecha: Medellín, ${hoy.toLocaleDateString('es-ES', opcionesFecha)}`;
         
         cartaPeriodo.textContent = periodoAcademicoInput.value;
         cartaNombreDocente.textContent = nombreDocenteInput.value;
@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     doc.setFontSize(11);
                     const hoy = new Date();
                     const opcionesFecha = { year: 'numeric', month: 'long', day: 'numeric' };
-                    doc.text(`Lugar y Fecha: Bogotá, ${hoy.toLocaleDateString('es-ES', opcionesFecha)}`, pageWidth / 2, y, { align: 'center' });
+                    doc.text(`Lugar y Fecha: Medellín, ${hoy.toLocaleDateString('es-ES', opcionesFecha)}`, pageWidth / 2, y, { align: 'center' });
                     y += 15;
                     
                     // Cuerpo del documento
