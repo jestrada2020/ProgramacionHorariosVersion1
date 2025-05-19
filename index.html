@@ -70,6 +70,7 @@
                 <li><a href="#materias" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Materias</a></li>
                 <li><a href="#aulas" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Aulas</a></li>
                 <li><a href="#restricciones" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Restricciones</a></li>
+                <li><a href="#reporte-docente" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Generador de Carga</a></li>
                 <li><a href="#horarios" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Horarios</a></li>
             </ul>
         </nav>
@@ -166,51 +167,17 @@
                 </div>
             </div>
 
-            <!-- Nueva sección de Configuración de Asesorías -->
+            <!-- Nota sobre la configuración de asesorías -->
             <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                 <div class="border-b pb-3 mb-4">
-                    <h2 class="text-xl font-semibold text-gray-800">Configuración de Asesorías</h2>
+                    <h2 class="text-xl font-semibold text-gray-800">Nota sobre Configuración de Asesorías</h2>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Asesorías Normales -->
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h3 class="font-medium text-gray-700 mb-3">Asesorías Académicas Normales</h3>
-                        <div class="flex items-center mb-3">
-                            <input type="checkbox" id="habilitarAsesoriasNormales" class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                            <label for="habilitarAsesoriasNormales" class="text-sm font-medium text-gray-700">Habilitar Asesorías Normales</label>
-                        </div>
-                        <div class="space-y-2">
-                            <div>
-                                <label for="duracionAsesoriaNormal" class="block text-sm font-medium text-gray-600">Duración por sesión (minutos):</label>
-                                <input type="number" id="duracionAsesoriaNormal" min="15" max="240" step="15" value="60" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
-                            </div>
-                            <div>
-                                <label for="frecuenciaAsesoriaNormal" class="block text-sm font-medium text-gray-600">Veces por semana:</label>
-                                <input type="number" id="frecuenciaAsesoriaNormal" min="1" max="5" step="1" value="1" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Asesorías Evaluación Diferencial -->
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h3 class="font-medium text-gray-700 mb-3">Asesorías Evaluación Diferencial (Obligatorias)</h3>
-                        <div class="flex items-center mb-3">
-                            <input type="checkbox" id="habilitarAsesoriasEvaluacion" class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                            <label for="habilitarAsesoriasEvaluacion" class="text-sm font-medium text-gray-700">Habilitar Asesorías de Evaluación</label>
-                        </div>
-                        <div class="space-y-2">
-                            <div>
-                                <label for="duracionAsesoriaEvaluacion" class="block text-sm font-medium text-gray-600">Duración por sesión (minutos):</label>
-                                <input type="number" id="duracionAsesoriaEvaluacion" min="30" max="240" step="30" value="120" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
-                            </div>
-                            <div>
-                                <label for="frecuenciaAsesoriaEvaluacion" class="block text-sm font-medium text-gray-600">Veces por semana:</label>
-                                <input type="number" id="frecuenciaAsesoriaEvaluacion" min="1" max="5" step="1" value="1" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
-                            </div>
-                        </div>
-                    </div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p class="text-blue-800 mb-2">La configuración de asesorías ahora se realiza de forma individual para cada profesor.</p>
+                    <p class="text-blue-700 text-sm">Para configurar las asesorías para un profesor específico, vaya a la pestaña "Profesores" y edite el profesor correspondiente.</p>
                 </div>
             </div>
-            <!-- Fin Nueva sección de Configuración de Asesorías -->
+            <!-- Fin nota sobre configuración de asesorías -->
 
 
             <div class="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -325,13 +292,15 @@
                                     <th class="py-2 px-3 text-center" title="Horas de capacitación semestral prorrateadas semanalmente (asumiendo 16 semanas/semestre)">Capacitación</th>
                                     <th class="py-2 px-3 text-center" title="Horas administrativas asignadas al profesor">Admin.</th>
                                     <th class="py-2 px-3 text-center" title="Carga por cursos virtuales">C. Virtuales</th>
+                                    <th class="py-2 px-3 text-center" title="Horas de asesorías virtuales">Ases. Virtuales</th>
+                                    <th class="py-2 px-3 text-center" title="Horas de trabajo desde casa">Trabajo Casa</th>
                                     <th class="py-2 px-3 text-center font-bold">Total Semanal</th>
                                     <th class="py-2 px-3 text-center" title="Objetivo de horas para el profesor">Objetivo</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <!-- Filas generadas por JS -->
-                                <tr><td colspan="14" class="py-3 px-4 text-center text-gray-500">Calculando carga...</td></tr>
+                                <tr><td colspan="16" class="py-3 px-4 text-center text-gray-500">Calculando carga...</td></tr>
                             </tbody>
                         </table>
                         <p class="text-xs text-gray-500 mt-1">* Las horas de capacitación se prorratean asumiendo un semestre de 16 semanas.</p>
@@ -522,6 +491,203 @@
             </div>
         </div>
 
+        <!-- Pestaña de Reporte Por Docente -->
+        <div id="reporte-docente" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">Generador de Carga Docente</h2>
+                    <div class="flex space-x-2">
+                        <select id="selectorProfesorCarta" class="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Seleccione un docente --</option>
+                        </select>
+                        <button id="refreshProfesorListaBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 rounded transition-colors" title="Refrescar lista de profesores">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Formulario de datos -->
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h3 class="text-lg font-medium mb-4 text-gray-700">Datos del Docente</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="nombre_docente" class="block text-sm font-medium text-gray-700">Nombre del Docente</label>
+                                    <input type="text" id="nombre_docente" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                                <div>
+                                    <label for="id_docente" class="block text-sm font-medium text-gray-700">ID/Código del Docente</label>
+                                    <input type="text" id="id_docente" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="tipo_contrato" class="block text-sm font-medium text-gray-700">Tipo de Contrato</label>
+                                    <input type="text" id="tipo_contrato" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                                <div>
+                                    <label for="horas_contrato_semanal" class="block text-sm font-medium text-gray-700">Horas Contratadas Semanales</label>
+                                    <input type="number" id="horas_contrato_semanal" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label for="periodo_academico" class="block text-sm font-medium text-gray-700">Periodo Académico</label>
+                                <input type="text" id="periodo_academico" class="mt-1 w-full p-2 border rounded" readonly>
+                            </div>
+                            
+                            <div>
+                                <label for="nombre_institucion" class="block text-sm font-medium text-gray-700">Nombre de la Institución</label>
+                                <input type="text" id="nombre_institucion" class="mt-1 w-full p-2 border rounded" value="Universidad XYZ">
+                            </div>
+                        </div>
+                        
+                        <h3 class="text-lg font-medium my-4 text-gray-700">Distribución de Horas Semanales</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="horas_docencia_directa" class="block text-sm font-medium text-gray-700">Docencia Directa (Clases)</label>
+                                    <input type="number" id="horas_docencia_directa" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                                <div>
+                                    <label for="horas_investigacion_externa" class="block text-sm font-medium text-gray-700">Investigación Externa</label>
+                                    <input type="number" id="horas_investigacion_externa" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="horas_investigacion_interna" class="block text-sm font-medium text-gray-700">Investigación Interna</label>
+                                    <input type="number" id="horas_investigacion_interna" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                                <div>
+                                    <label for="horas_creacion_material" class="block text-sm font-medium text-gray-700">Creación Material Didáctico</label>
+                                    <input type="number" id="horas_creacion_material" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="horas_capacitacion" class="block text-sm font-medium text-gray-700">Capacitación</label>
+                                    <input type="number" id="horas_capacitacion" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                                <div>
+                                    <label for="horas_cargo_administrativo" class="block text-sm font-medium text-gray-700">Cargo Administrativo</label>
+                                    <input type="number" id="horas_cargo_administrativo" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="horas_cursos_virtuales" class="block text-sm font-medium text-gray-700">Cursos Virtuales</label>
+                                    <input type="number" id="horas_cursos_virtuales" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                                <div>
+                                    <label for="horas_asesorias_virtuales" class="block text-sm font-medium text-gray-700">Asesorías Virtuales</label>
+                                    <input type="number" id="horas_asesorias_virtuales" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="horas_asesorias_presenciales" class="block text-sm font-medium text-gray-700">Asesorías Presenciales</label>
+                                    <input type="number" id="horas_asesorias_presenciales" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                                <div>
+                                    <label for="horas_evaluacion_diferencial" class="block text-sm font-medium text-gray-700">Evaluación Diferencial</label>
+                                    <input type="number" id="horas_evaluacion_diferencial" class="mt-1 w-full p-2 border rounded" readonly>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label for="horas_trabajo_casa" class="block text-sm font-medium text-gray-700">Trabajo en Casa (Preparación)</label>
+                                <input type="number" id="horas_trabajo_casa" class="mt-1 w-full p-2 border rounded" readonly>
+                            </div>
+                            
+                            <div class="flex justify-center mt-6 space-x-4">
+                                <button id="generarCarta" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors">
+                                    Actualizar Vista
+                                </button>
+                                <button id="exportarCartaPDF" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors">
+                                    Exportar PDF
+                                </button>
+                                <button id="exportarCartaExcel" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors">
+                                    Exportar Excel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Vista previa de carta -->
+                    <div id="cartaPreview" class="bg-white p-6 border border-gray-300 rounded-lg shadow-md hidden overflow-y-auto" style="max-height: 800px;">
+                        <div class="carta-container">
+                            <div class="text-center mb-6">
+                                <h2 id="cartaInstitucion" class="text-xl font-bold uppercase" contenteditable="true">UNIVERSIDAD XYZ</h2>
+                                <h3 class="text-lg font-semibold mt-2" contenteditable="true">CARTA DE COMPROMISO DOCENTE</h3>
+                                <p id="cartaLugarFecha" class="text-sm mt-2" contenteditable="true">Lugar y Fecha: Bogotá, D.C., 18 de mayo de 2025</p>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <p class="text-justify" contenteditable="true">
+                                    Yo, <strong id="cartaNombreDocente">Nombre del Docente</strong>, identificado con código <strong id="cartaIdDocente">ID12345</strong>, 
+                                    en calidad de docente de la <span class="cartaInstitucionInline">UNIVERSIDAD XYZ</span> para el período académico 
+                                    <strong id="cartaPeriodo">2025-1</strong>, con contrato de tipo <strong id="cartaTipoContrato">Tiempo Completo</strong> 
+                                    (<strong id="cartaHorasContrato">40</strong> horas semanales), me comprometo a cumplir con las siguientes actividades académicas:
+                                </p>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <h4 class="font-semibold mb-2" contenteditable="true">Distribución de horas de trabajo semanal:</h4>
+                                <ul id="listaHoras" class="list-disc pl-6 space-y-1">
+                                    <!-- Aquí se llenarán las horas desde JavaScript con atributo contenteditable -->
+                                </ul>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <p class="text-justify" contenteditable="true">
+                                    El total de horas semanales asignadas es de <strong id="totalHorasAsignadas">40</strong> horas, 
+                                    que se distribuyen según el detalle anterior. Me comprometo a cumplir con los horarios y actividades 
+                                    establecidas por la institución.
+                                </p>
+                            </div>
+                            
+                            <div id="parrafoHorasExtras" class="mb-6" style="display: none;">
+                                <p class="text-justify font-semibold text-red-600" contenteditable="true">
+                                    Este compromiso incluye <strong id="cartaHorasExtras">0</strong> horas adicionales a mi carga contractual, 
+                                    que serán reconocidas según las políticas de la institución para horas extras.
+                                </p>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <p class="text-justify" contenteditable="true">
+                                    Comprendo que el incumplimiento de este compromiso tendrá consecuencias según los reglamentos institucionales.
+                                </p>
+                            </div>
+                            
+                            <div class="mt-12 text-center">
+                                <div class="inline-block border-t border-black pt-2 px-12">
+                                    <p id="firmaNombreDocente" class="font-semibold" contenteditable="true">Nombre del Docente</p>
+                                    <p id="firmaIdDocente" class="text-sm" contenteditable="true">ID12345</p>
+                                    <p class="text-sm" contenteditable="true">Docente <span class="cartaTipoContratoInline">Tiempo Completo</span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 border-t border-gray-300 pt-3">
+                                <p class="text-xs text-gray-600 text-center" contenteditable="true">
+                                    Este documento es una carta de compromiso formal entre el docente y la institución.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Pestaña de Horarios -->
         <div id="horarios" class="tab-content">
@@ -678,6 +844,14 @@
                         <label for="profesorCursosVirtuales" class="block text-sm font-medium text-gray-600">Cursos Virtuales:</label>
                         <input type="number" id="profesorCursosVirtuales" min="0" step="0.5" value="0" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
                     </div>
+                    <div>
+                        <label for="profesorAsesoriasVirtuales" class="block text-sm font-medium text-gray-600">Horas de Asesorías Virtuales:</label>
+                        <input type="number" id="profesorAsesoriasVirtuales" min="0" step="0.5" value="0" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label for="profesorTrabajoEnCasa" class="block text-sm font-medium text-gray-600">Horas Trabajo desde casa:</label>
+                        <input type="number" id="profesorTrabajoEnCasa" min="0" step="0.5" value="0" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
                     <!-- Opcional: Horas Objetivo -->
                     <div>
                         <label for="profesorHorasObjetivo" class="block text-sm font-medium text-gray-600">Horas Objetivo Semanal:</label>
@@ -698,6 +872,50 @@
                     <!-- La estructura de las materias será generada por JS -->
                 </div>
             </div>
+            
+            <!-- Configuración de Asesorías por Profesor -->
+            <div class="mb-4 border-t pt-4 mt-4">
+                <h3 class="text-lg font-semibold text-gray-700 mb-3">Configuración de Asesorías</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Asesorías Normales -->
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <h4 class="font-medium text-gray-700 mb-2">Asesorías Académicas Normales</h4>
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" id="habilitarAsesoriasNormalesProfesor" class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="habilitarAsesoriasNormalesProfesor" class="text-sm font-medium text-gray-700">Habilitar Asesorías Normales</label>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <label for="duracionAsesoriaNormalProfesor" class="block text-sm font-medium text-gray-600">Duración por sesión (minutos):</label>
+                                <input type="number" id="duracionAsesoriaNormalProfesor" min="15" max="240" step="15" value="60" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            </div>
+                            <div>
+                                <label for="frecuenciaAsesoriaNormalProfesor" class="block text-sm font-medium text-gray-600">Veces por semana:</label>
+                                <input type="number" id="frecuenciaAsesoriaNormalProfesor" min="1" max="5" step="1" value="1" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Asesorías Evaluación Diferencial -->
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <h4 class="font-medium text-gray-700 mb-2">Asesorías Evaluación Diferencial</h4>
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" id="habilitarAsesoriasEvaluacionProfesor" class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="habilitarAsesoriasEvaluacionProfesor" class="text-sm font-medium text-gray-700">Habilitar Asesorías de Evaluación</label>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <label for="duracionAsesoriaEvaluacionProfesor" class="block text-sm font-medium text-gray-600">Duración por sesión (minutos):</label>
+                                <input type="number" id="duracionAsesoriaEvaluacionProfesor" min="30" max="240" step="30" value="120" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            </div>
+                            <div>
+                                <label for="frecuenciaAsesoriaEvaluacionProfesor" class="block text-sm font-medium text-gray-600">Veces por semana:</label>
+                                <input type="number" id="frecuenciaAsesoriaEvaluacionProfesor" min="1" max="5" step="1" value="1" class="mt-1 w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-4">
                 <label class="block text-gray-700 font-medium mb-2">Disponibilidad Semanal:</label>
                 <div class="disponibilidad-grid">
@@ -1028,6 +1246,7 @@
     <script src="js/11_h11.js"></script>
     <script src="js/12_h12.js"></script>
     <script src="js/reportes.js"></script>
+    <script src="js/reporte-docente.js"></script>
     
     <script>
         // Configurar eventos de botones de reportes

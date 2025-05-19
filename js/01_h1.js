@@ -168,14 +168,7 @@
             // Configuración
             document.getElementById('saveConfigBtn').addEventListener('click', guardarConfiguracion);
             document.getElementById('cantidadSemestres').addEventListener('change', actualizarInterfaz); // Actualizar selectores si cambia
-            // Eventos para nueva config de asesorías
-            document.getElementById('habilitarAsesoriasNormales').addEventListener('change', guardarConfiguracion);
-            document.getElementById('duracionAsesoriaNormal').addEventListener('change', guardarConfiguracion);
-            document.getElementById('frecuenciaAsesoriaNormal').addEventListener('change', guardarConfiguracion);
-            document.getElementById('habilitarAsesoriasEvaluacion').addEventListener('change', guardarConfiguracion);
-            document.getElementById('duracionAsesoriaEvaluacion').addEventListener('change', guardarConfiguracion);
-            document.getElementById('frecuenciaAsesoriaEvaluacion').addEventListener('change', guardarConfiguracion);
-            // Fin eventos nueva config asesorías
+            // Nota: La configuración de asesorías se ha movido a nivel de profesor individual
             document.querySelectorAll('.dia-semana-check').forEach(chk => chk.addEventListener('change', guardarConfiguracion)); // Guardar al cambiar días
 
             // Importar/Exportar/Ejemplo
@@ -195,6 +188,28 @@
             document.getElementById('addProfesorBtn').addEventListener('click', () => mostrarModalProfesor());
             document.getElementById('guardarProfesorBtn').addEventListener('click', guardarProfesor);
             document.getElementById('cancelarProfesorBtn').addEventListener('click', () => cerrarModal('modalProfesor'));
+            
+            // Event listeners para los campos de configuración de asesorías del profesor
+            const habilitarAsesoriasNormalesProfesor = document.getElementById('habilitarAsesoriasNormalesProfesor');
+            const habilitarAsesoriasEvaluacionProfesor = document.getElementById('habilitarAsesoriasEvaluacionProfesor');
+            if (habilitarAsesoriasNormalesProfesor) {
+                habilitarAsesoriasNormalesProfesor.addEventListener('change', function() {
+                    const duracionInput = document.getElementById('duracionAsesoriaNormalProfesor');
+                    const frecuenciaInput = document.getElementById('frecuenciaAsesoriaNormalProfesor');
+                    duracionInput.disabled = !this.checked;
+                    frecuenciaInput.disabled = !this.checked;
+                });
+            }
+            if (habilitarAsesoriasEvaluacionProfesor) {
+                habilitarAsesoriasEvaluacionProfesor.addEventListener('change', function() {
+                    const duracionInput = document.getElementById('duracionAsesoriaEvaluacionProfesor');
+                    const frecuenciaInput = document.getElementById('frecuenciaAsesoriaEvaluacionProfesor');
+                    duracionInput.disabled = !this.checked;
+                    frecuenciaInput.disabled = !this.checked;
+                });
+            }
+
+            setupProveedoresProfesor();
 
             document.getElementById('addMateriaBtn').addEventListener('click', () => mostrarModalMateria());
             document.getElementById('guardarMateriaBtn').addEventListener('click', guardarMateria);
@@ -311,7 +326,7 @@
                 tbody.innerHTML = `<tr><td colspan="5" class="py-4 px-6 text-center">No hay profesores registrados.</td></tr>`;
                 // Limpiar también el resumen detallado
                 const resumenTbody = document.getElementById('resumenCargaProfesores').querySelector('tbody');
-                if (resumenTbody) resumenTbody.innerHTML = `<tr><td colspan="10" class="py-3 px-4 text-center text-gray-500">No hay profesores para mostrar carga.</td></tr>`;
+                if (resumenTbody) resumenTbody.innerHTML = `<tr><td colspan="16" class="py-3 px-4 text-center text-gray-500">No hay profesores para mostrar carga.</td></tr>`;
                 return;
             }
 
@@ -406,6 +421,8 @@
                                     <td class="py-2 px-3 text-center">${carga.capacitacion}</td>
                                     <td class="py-2 px-3 text-center">${carga.administrativas}</td>
                                     <td class="py-2 px-3 text-center">${carga.cursosVirtuales}</td>
+                                    <td class="py-2 px-3 text-center">${carga.asesoriasVirtuales}</td>
+                                    <td class="py-2 px-3 text-center">${carga.trabajoEnCasa}</td>
                                     <td class="py-2 px-3 text-center">
                                         <span class="font-bold">${carga.total}</span>
                                         <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
@@ -421,7 +438,7 @@
                                   </tr>`;
                 });
             } else {
-                resumenTbodyHtml = `<tr><td colspan="10" class="py-3 px-4 text-center text-gray-500">No hay profesores para mostrar carga.</td></tr>`; // Ajustar colspan
+                resumenTbodyHtml = `<tr><td colspan="16" class="py-3 px-4 text-center text-gray-500">No hay profesores para mostrar carga.</td></tr>`; // Ajustar colspan
             }
             if (resumenTbody) resumenTbody.innerHTML = resumenTbodyHtml;
         }
@@ -496,6 +513,8 @@
                                     <td class="py-2 px-3 text-center">${carga.capacitacion}</td>
                                     <td class="py-2 px-3 text-center">${carga.administrativas}</td>
                                     <td class="py-2 px-3 text-center">${carga.cursosVirtuales}</td>
+                                    <td class="py-2 px-3 text-center">${carga.asesoriasVirtuales}</td>
+                                    <td class="py-2 px-3 text-center">${carga.trabajoEnCasa}</td>
                                     <td class="py-2 px-3 text-center">
                                         <span class="font-bold">${carga.total}</span>
                                         <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
@@ -509,7 +528,7 @@
                                   </tr>`;
                 });
             } else {
-                resumenTbodyHtml = `<tr><td colspan="14" class="py-3 px-4 text-center text-gray-500">No hay profesores para mostrar carga.</td></tr>`;
+                resumenTbodyHtml = `<tr><td colspan="16" class="py-3 px-4 text-center text-gray-500">No hay profesores para mostrar carga.</td></tr>`;
             }
             
             resumenTbody.innerHTML = resumenTbodyHtml;

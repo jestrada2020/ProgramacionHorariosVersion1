@@ -20,12 +20,33 @@
                 return;
             }
 
+            // Usar la configuración de asesorías específica del profesor si está disponible
+            const asesoriasNormalesConfig = profesor.asesoriasNormalesConfig || estado.configuracion.asesoriasNormalesConfig || {};
+            const asesoriasEvaluacionConfig = profesor.asesoriasEvaluacionConfig || estado.configuracion.asesoriasEvaluacionConfig || {};
+            const asesoriasNormalesHabilitadas = asesoriasNormalesConfig.habilitado || false;
+            const asesoriasEvaluacionHabilitadas = asesoriasEvaluacionConfig.habilitado || false;
+
             const diasHabiles = obtenerDiasHabiles();
             const horasPorDia = calcularHorasPorDia();
             // const datosAsesorias = estado.horariosAsesorias[profesorId] || {}; // Datos reales de asesorías (no generados aún)
             const titulo = `Disponibilidad para Asesorías - ${profesor.nombre}`;
 
             let html = `<caption class="text-lg font-medium mb-2 caption-top text-gray-700 no-print">${titulo}</caption>`;
+            if (asesoriasNormalesHabilitadas || asesoriasEvaluacionHabilitadas) {
+                html += `<div class="bg-blue-50 p-3 mb-3 rounded-md border border-blue-200 text-sm">
+                    <p class="font-medium text-blue-800">Configuración de asesorías para este profesor:</p>
+                    ${asesoriasNormalesHabilitadas ? 
+                        `<p class="text-blue-700">Asesorías Normales: ${asesoriasNormalesConfig.duracionMinutos} minutos, ${asesoriasNormalesConfig.vecesPorSemana} ${asesoriasNormalesConfig.vecesPorSemana > 1 ? 'veces' : 'vez'} por semana</p>` : 
+                        '<p class="text-gray-500">Asesorías Normales deshabilitadas</p>'}
+                    ${asesoriasEvaluacionHabilitadas ? 
+                        `<p class="text-blue-700">Asesorías de Evaluación: ${asesoriasEvaluacionConfig.duracionMinutos} minutos, ${asesoriasEvaluacionConfig.vecesPorSemana} ${asesoriasEvaluacionConfig.vecesPorSemana > 1 ? 'veces' : 'vez'} por semana</p>` : 
+                        '<p class="text-gray-500">Asesorías de Evaluación deshabilitadas</p>'}
+                </div>`;
+            } else {
+                html += `<div class="bg-yellow-50 p-3 mb-3 rounded-md border border-yellow-200 text-sm">
+                    <p class="text-yellow-700">Este profesor no tiene configuradas horas de asesoría.</p>
+                </div>`;
+            }
             html += '<thead><tr><th class="py-2 px-1 w-16">Hora</th>';
             diasHabiles.forEach(dia => { html += `<th class="py-2 px-1">${dia}</th>`; });
             html += '</tr></thead><tbody>';
@@ -128,16 +149,8 @@
                 chk.checked = estado.configuracion.diasDisponibles.includes(chk.dataset.dia);
             });
 
-            // Configuración Asesorías
-            const confAsesNormal = estado.configuracion.asesoriasNormalesConfig || {};
-            document.getElementById('habilitarAsesoriasNormales').checked = confAsesNormal.habilitado || false;
-            document.getElementById('duracionAsesoriaNormal').value = confAsesNormal.duracionMinutos || 60;
-            document.getElementById('frecuenciaAsesoriaNormal').value = confAsesNormal.vecesPorSemana || 1;
-            const confAsesEval = estado.configuracion.asesoriasEvaluacionConfig || {};
-            document.getElementById('habilitarAsesoriasEvaluacion').checked = confAsesEval.habilitado || false;
-            document.getElementById('duracionAsesoriaEvaluacion').value = confAsesEval.duracionMinutos || 120;
-            document.getElementById('frecuenciaAsesoriaEvaluacion').value = confAsesEval.vecesPorSemana || 1;
-
+            // Nota: La configuración de asesorías se ha movido a nivel de profesor individual
+            
             // Selectores dependientes
             actualizarSelectorTipoVista(); // Actualiza el selector de elementos y llama a actualizarHorarioVisible si es necesario
             actualizarSelectorSemestres(); // Actualiza selector en modal materia

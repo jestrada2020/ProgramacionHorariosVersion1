@@ -120,19 +120,8 @@
                 document.querySelector('.dia-semana-check[data-dia="Lunes"]').checked = true;
             }
             
-            // Asesorías Normales
-            estado.configuracion.asesoriasNormalesConfig = {
-                habilitado: document.getElementById('habilitarAsesoriasNormales').checked,
-                duracionMinutos: parseInt(document.getElementById('duracionAsesoriaNormal').value) || 60,
-                vecesPorSemana: parseInt(document.getElementById('frecuenciaAsesoriaNormal').value) || 1
-            };
-            
-            // Asesorías Evaluación
-            estado.configuracion.asesoriasEvaluacionConfig = {
-                habilitado: document.getElementById('habilitarAsesoriasEvaluacion').checked,
-                duracionMinutos: parseInt(document.getElementById('duracionAsesoriaEvaluacion').value) || 120,
-                vecesPorSemana: parseInt(document.getElementById('frecuenciaAsesoriaEvaluacion').value) || 1
-            };
+            // Mantener la configuración global de asesorías como referencia predeterminada
+            // pero ya no se actualiza desde la UI global, sino desde cada profesor
             
             // Verificar que cantidadSemestres sea al menos igual al semestre máximo en materias
             if (estado.materias && estado.materias.length > 0) {
@@ -279,9 +268,10 @@
                         const esVirtual = materiasDetalle && materiasDetalle.esVirtual;
                         const partOfLoad = materiasDetalle && materiasDetalle.partOfLoad;
                         
-                        // Solo contabilizar si está marcada explícitamente como parte de la carga del profesor
-                        // o si no está marcada como virtual (retrocompatibilidad)
-                        if (!(partOfLoad || (!esVirtual && !partOfLoad))) {
+                        // Contabilizar si está marcada como parte de la carga del profesor
+                        // o si es un clon virtual (ahora también se contabilizan en la carga)
+                        // Solo excluimos si está explícitamente marcada como que no es parte de la carga
+                        if (materiasDetalle && materiasDetalle.partOfLoad === false) {
                             return;
                         }
                         
@@ -304,14 +294,15 @@
                 }
                 const horasClase = bloquesClase * duracionBloqueHoras; // Convertir bloques a horas
 
-                const confAsesNormal = estado.configuracion.asesoriasNormalesConfig || {};
-                const horasAsesNormal = confAsesNormal.habilitado
-                    ? (confAsesNormal.duracionMinutos / 60) * confAsesNormal.vecesPorSemana
+                // Usar la configuración de asesorías específica del profesor si está disponible
+                const asesoriasNormalesConfig = prof.asesoriasNormalesConfig || estado.configuracion.asesoriasNormalesConfig || {};
+                const horasAsesNormal = asesoriasNormalesConfig.habilitado
+                    ? (asesoriasNormalesConfig.duracionMinutos / 60) * asesoriasNormalesConfig.vecesPorSemana
                     : 0;
 
-                const confAsesEval = estado.configuracion.asesoriasEvaluacionConfig || {};
-                const horasAsesEval = confAsesEval.habilitado
-                    ? (confAsesEval.duracionMinutos / 60) * confAsesEval.vecesPorSemana
+                const asesoriasEvaluacionConfig = prof.asesoriasEvaluacionConfig || estado.configuracion.asesoriasEvaluacionConfig || {};
+                const horasAsesEval = asesoriasEvaluacionConfig.habilitado
+                    ? (asesoriasEvaluacionConfig.duracionMinutos / 60) * asesoriasEvaluacionConfig.vecesPorSemana
                     : 0;
 
                 const horasInvestigacion = prof.horasInvestigacionSemanal || 0;
@@ -321,10 +312,12 @@
                 const horasCapacitacion = (prof.horasCapacitacionSemestral || 0) / semanasPorSemestre;
                 const horasAdministrativas = prof.horasAdministrativas || 0;
                 const cursosVirtuales = prof.cursosVirtuales || 0;
+                const horasAsesoriasVirtuales = prof.horasAsesoriasVirtuales || 0;
+                const horasTrabajoEnCasa = prof.horasTrabajoEnCasa || 0;
 
                 const totalHoras = horasClase + horasAsesNormal + horasAsesEval + horasInvestigacion +
                                  horasProyInst + horasProyExt + horasMaterial + horasCapacitacion +
-                                 horasAdministrativas + cursosVirtuales;
+                                 horasAdministrativas + cursosVirtuales + horasAsesoriasVirtuales + horasTrabajoEnCasa;
                 
                 // Determinar la carga horaria máxima según tipo de contrato
                 let cargaMaxima = 0;
@@ -362,6 +355,8 @@
                     capacitacion: horasCapacitacion.toFixed(1),
                     administrativas: horasAdministrativas.toFixed(1),
                     cursosVirtuales: cursosVirtuales.toFixed(1),
+                    asesoriasVirtuales: horasAsesoriasVirtuales.toFixed(1),
+                    trabajoEnCasa: horasTrabajoEnCasa.toFixed(1),
                     tipoContrato: prof.tipoContrato || 'tiempoCompleto',
                     cargaMaxima: cargaMaxima,
                     horasExtras: horasExtras.toFixed(1),

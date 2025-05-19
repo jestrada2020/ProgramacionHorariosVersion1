@@ -16,6 +16,13 @@
             const proyExtInput = document.getElementById('profesorProyectosExt');
             const materialInput = document.getElementById('profesorMaterial');
             const capacitacionInput = document.getElementById('profesorCapacitacion');
+            // Inputs de asesorías
+            const habilitarAsesoriasNormalesProfesorInput = document.getElementById('habilitarAsesoriasNormalesProfesor');
+            const duracionAsesoriaNormalProfesorInput = document.getElementById('duracionAsesoriaNormalProfesor');
+            const frecuenciaAsesoriaNormalProfesorInput = document.getElementById('frecuenciaAsesoriaNormalProfesor');
+            const habilitarAsesoriasEvaluacionProfesorInput = document.getElementById('habilitarAsesoriasEvaluacionProfesor');
+            const duracionAsesoriaEvaluacionProfesorInput = document.getElementById('duracionAsesoriaEvaluacionProfesor');
+            const frecuenciaAsesoriaEvaluacionProfesorInput = document.getElementById('frecuenciaAsesoriaEvaluacionProfesor');
             // const horasObjetivoInput = document.getElementById('profesorHorasObjetivo'); // Opcional
 
             if (profesorId) { // Modo Edición
@@ -35,16 +42,31 @@
                 materialInput.value = profesor.horasMaterialDidacticoSemanal || 0;
                 capacitacionInput.value = profesor.horasCapacitacionSemestral || 0;
                 
+                // Cargar configuración de asesorías del profesor
+                const asesoriasNormales = profesor.asesoriasNormalesConfig || {};
+                habilitarAsesoriasNormalesProfesorInput.checked = asesoriasNormales.habilitado || false;
+                duracionAsesoriaNormalProfesorInput.value = asesoriasNormales.duracionMinutos || 60;
+                frecuenciaAsesoriaNormalProfesorInput.value = asesoriasNormales.vecesPorSemana || 1;
+                
+                const asesoriasEvaluacion = profesor.asesoriasEvaluacionConfig || {};
+                habilitarAsesoriasEvaluacionProfesorInput.checked = asesoriasEvaluacion.habilitado || false;
+                duracionAsesoriaEvaluacionProfesorInput.value = asesoriasEvaluacion.duracionMinutos || 120;
+                frecuenciaAsesoriaEvaluacionProfesorInput.value = asesoriasEvaluacion.vecesPorSemana || 1;
+                
                 // Cargar los nuevos campos
                 const horasObjetivoInput = document.getElementById('profesorHorasObjetivo');
                 const tipoContratoInput = document.getElementById('profesorTipoContrato');
                 const horasAdministrativasInput = document.getElementById('profesorAdministrativas');
                 const cursosVirtualesInput = document.getElementById('profesorCursosVirtuales');
+                const asesoriasVirtualesInput = document.getElementById('profesorAsesoriasVirtuales');
+                const trabajoEnCasaInput = document.getElementById('profesorTrabajoEnCasa');
                 
                 if (horasObjetivoInput) horasObjetivoInput.value = profesor.horasObjetivoSemanal || '';
                 if (tipoContratoInput) tipoContratoInput.value = profesor.tipoContrato || 'tiempoCompleto';
                 if (horasAdministrativasInput) horasAdministrativasInput.value = profesor.horasAdministrativas || 0;
                 if (cursosVirtualesInput) cursosVirtualesInput.value = profesor.cursosVirtuales || 0;
+                if (asesoriasVirtualesInput) asesoriasVirtualesInput.value = profesor.horasAsesoriasVirtuales || 0;
+                if (trabajoEnCasaInput) trabajoEnCasaInput.value = profesor.horasTrabajoEnCasa || 0;
 
                 // Cargar materias que dicta
                 materiasContainer.innerHTML = ''; // Limpiar
@@ -53,14 +75,14 @@
                 let materiasHtml = `
                 <div class="bg-yellow-50 p-3 mb-3 rounded-md border border-yellow-200">
                     <p class="text-sm text-yellow-800 mb-1 font-medium">Información sobre clones virtuales:</p>
-                    <p class="text-xs text-yellow-700">Un "clon virtual" es una materia que el profesor puede dictar pero que no se contabiliza dentro de su carga laboral normal.</p>
+                    <p class="text-xs text-yellow-700">Un "clon virtual" es una materia que el profesor puede dictar y que sí se contabiliza dentro de su carga laboral. También puede ser carga laboral de otro profesor.</p>
                     <p class="text-xs text-yellow-700 mt-1">Las aulas para cursos virtuales se definirán como "pendiente" en el horario hasta su asignación definitiva.</p>
                 </div>
                 <div class="grid grid-cols-4 gap-2 mb-2 bg-gray-100 p-1 text-xs font-medium">
                     <div>Materia</div>
                     <div class="text-center">Puede dictar</div>
-                    <div class="text-center">Carga normal</div>
-                    <div class="text-center">Clon virtual</div>
+                    <div class="text-center" title="Marque si la materia es parte de la carga laboral normal del profesor">Carga normal</div>
+                    <div class="text-center" title="Marque si la materia es un clon virtual (se incluye en la carga laboral)">Clon virtual</div>
                 </div>
                 <div class="max-h-60 overflow-y-auto">
                 `;
@@ -92,12 +114,14 @@
                                 <input type="checkbox" id="profMatCarga-${materia.id}" name="profMatLoad-${materia.id}" 
                                     class="materia-carga-check" ${(isPartOfLoad || (!isVirtual && isChecked) || isRequired) ? 'checked' : ''} 
                                     ${!isChecked && !isRequired ? 'disabled' : ''} 
-                                    ${isRequired ? 'checked disabled' : ''}>
+                                    ${isRequired ? 'checked disabled' : ''}
+                                    title="Incluir en la carga laboral normal">
                             </div>
                             <div class="text-center">
                                 <input type="checkbox" id="profMatVirtual-${materia.id}" name="profMatVirtual-${materia.id}" 
                                     class="materia-virtual-check" ${isVirtual ? 'checked' : ''} 
-                                    ${!isChecked && !isRequired ? 'disabled' : ''}>
+                                    ${!isChecked && !isRequired ? 'disabled' : ''}
+                                    title="Marcar como clon virtual (se incluye en la carga laboral)">
                             </div>
                         </div>
                     `;
@@ -151,16 +175,28 @@
                 materialInput.value = 0;
                 capacitacionInput.value = 0;
                 
+                // Resetear configuración de asesorías
+                habilitarAsesoriasNormalesProfesorInput.checked = false;
+                duracionAsesoriaNormalProfesorInput.value = 60;
+                frecuenciaAsesoriaNormalProfesorInput.value = 1;
+                habilitarAsesoriasEvaluacionProfesorInput.checked = false;
+                duracionAsesoriaEvaluacionProfesorInput.value = 120;
+                frecuenciaAsesoriaEvaluacionProfesorInput.value = 1;
+                
                 // Resetear los nuevos campos
                 const horasObjetivoInput = document.getElementById('profesorHorasObjetivo');
                 const tipoContratoInput = document.getElementById('profesorTipoContrato');
                 const horasAdministrativasInput = document.getElementById('profesorAdministrativas');
                 const cursosVirtualesInput = document.getElementById('profesorCursosVirtuales');
+                const asesoriasVirtualesInput = document.getElementById('profesorAsesoriasVirtuales');
+                const trabajoEnCasaInput = document.getElementById('profesorTrabajoEnCasa');
                 
                 if (horasObjetivoInput) horasObjetivoInput.value = '';
                 if (tipoContratoInput) tipoContratoInput.value = 'tiempoCompleto'; // Valor por defecto
                 if (horasAdministrativasInput) horasAdministrativasInput.value = 0;
                 if (cursosVirtualesInput) cursosVirtualesInput.value = 0;
+                if (asesoriasVirtualesInput) asesoriasVirtualesInput.value = 0;
+                if (trabajoEnCasaInput) trabajoEnCasaInput.value = 0;
 
                 // Cargar materias (ninguna seleccionada por defecto)
                 materiasContainer.innerHTML = ''; // Limpiar
@@ -169,14 +205,14 @@
                 let materiasHtml = `
                 <div class="bg-yellow-50 p-3 mb-3 rounded-md border border-yellow-200">
                     <p class="text-sm text-yellow-800 mb-1 font-medium">Información sobre clones virtuales:</p>
-                    <p class="text-xs text-yellow-700">Un "clon virtual" es una materia que el profesor puede dictar pero que no se contabiliza dentro de su carga laboral normal.</p>
+                    <p class="text-xs text-yellow-700">Un "clon virtual" es una materia que el profesor puede dictar y que sí se contabiliza dentro de su carga laboral. También puede ser carga laboral de otro profesor.</p>
                     <p class="text-xs text-yellow-700 mt-1">Las aulas para cursos virtuales se definirán como "pendiente" en el horario hasta su asignación definitiva.</p>
                 </div>
                 <div class="grid grid-cols-4 gap-2 mb-2 bg-gray-100 p-1 text-xs font-medium">
                     <div>Materia</div>
                     <div class="text-center">Puede dictar</div>
-                    <div class="text-center">Carga normal</div>
-                    <div class="text-center">Clon virtual</div>
+                    <div class="text-center" title="Marque si la materia es parte de la carga laboral normal del profesor">Carga normal</div>
+                    <div class="text-center" title="Marque si la materia es un clon virtual (se incluye en la carga laboral)">Clon virtual</div>
                 </div>
                 <div class="max-h-60 overflow-y-auto">
                 `;
@@ -199,11 +235,13 @@
                             </div>
                             <div class="text-center">
                                 <input type="checkbox" id="profMatCarga-${materia.id}" name="profMatLoad-${materia.id}" 
-                                    class="materia-carga-check" ${isRequired ? 'checked disabled' : 'disabled'}>
+                                    class="materia-carga-check" ${isRequired ? 'checked disabled' : 'disabled'}
+                                    title="Incluir en la carga laboral normal">
                             </div>
                             <div class="text-center">
                                 <input type="checkbox" id="profMatVirtual-${materia.id}" name="profMatVirtual-${materia.id}" 
-                                    class="materia-virtual-check" ${isRequired ? 'disabled' : 'disabled'}>
+                                    class="materia-virtual-check" ${isRequired ? 'disabled' : 'disabled'}
+                                    title="Marcar como clon virtual (se incluye en la carga laboral)">
                             </div>
                         </div>
                     `;
@@ -261,12 +299,36 @@
             const horasMaterialDidacticoSemanal = parseFloat(document.getElementById('profesorMaterial').value) || 0;
             const horasCapacitacionSemestral = parseFloat(document.getElementById('profesorCapacitacion').value) || 0;
             
+            // Leer configuración de asesorías
+            const asesoriasNormalesConfig = {
+                habilitado: document.getElementById('habilitarAsesoriasNormalesProfesor').checked,
+                duracionMinutos: parseInt(document.getElementById('duracionAsesoriaNormalProfesor').value) || 60,
+                vecesPorSemana: parseInt(document.getElementById('frecuenciaAsesoriaNormalProfesor').value) || 1
+            };
+            
+            const asesoriasEvaluacionConfig = {
+                habilitado: document.getElementById('habilitarAsesoriasEvaluacionProfesor').checked,
+                duracionMinutos: parseInt(document.getElementById('duracionAsesoriaEvaluacionProfesor').value) || 120,
+                vecesPorSemana: parseInt(document.getElementById('frecuenciaAsesoriaEvaluacionProfesor').value) || 1
+            };
+            
             // Leer nuevos campos
             const horasObjetivoSemanalInput = document.getElementById('profesorHorasObjetivo');
             const horasObjetivoSemanal = horasObjetivoSemanalInput ? (parseFloat(horasObjetivoSemanalInput.value) || null) : null;
             const tipoContrato = document.getElementById('profesorTipoContrato').value;
             const horasAdministrativas = parseFloat(document.getElementById('profesorAdministrativas').value) || 0;
             const cursosVirtuales = parseFloat(document.getElementById('profesorCursosVirtuales').value) || 0;
+            const horasAsesoriasVirtuales = parseFloat(document.getElementById('profesorAsesoriasVirtuales').value) || 0;
+            const horasTrabajoEnCasa = parseFloat(document.getElementById('profesorTrabajoEnCasa').value) || 0;
+
+            // Leer configuración de asesorías del profesor
+            const habilitarAsesoriasNormalesProfesor = document.getElementById('habilitarAsesoriasNormalesProfesor').checked;
+            const duracionAsesoriaNormalProfesor = parseInt(document.getElementById('duracionAsesoriaNormalProfesor').value) || 60;
+            const frecuenciaAsesoriaNormalProfesor = parseInt(document.getElementById('frecuenciaAsesoriaNormalProfesor').value) || 1;
+            
+            const habilitarAsesoriasEvaluacionProfesor = document.getElementById('habilitarAsesoriasEvaluacionProfesor').checked;
+            const duracionAsesoriaEvaluacionProfesor = parseInt(document.getElementById('duracionAsesoriaEvaluacionProfesor').value) || 120;
+            const frecuenciaAsesoriaEvaluacionProfesor = parseInt(document.getElementById('frecuenciaAsesoriaEvaluacionProfesor').value) || 1;
 
             if (!codigo || !nombre) {
                 mostrarNotificacion('Error', 'El código y el nombre son obligatorios.', 'error');
@@ -332,11 +394,30 @@
                     profesor.horasMaterialDidacticoSemanal = horasMaterialDidacticoSemanal;
                     profesor.horasCapacitacionSemestral = horasCapacitacionSemestral;
                     
+                    // Actualizar configuración de asesorías
+                    profesor.asesoriasNormalesConfig = asesoriasNormalesConfig;
+                    profesor.asesoriasEvaluacionConfig = asesoriasEvaluacionConfig;
+                    
                     // Actualizar nuevos campos
                     profesor.horasObjetivoSemanal = horasObjetivoSemanal; 
                     profesor.tipoContrato = tipoContrato;
                     profesor.horasAdministrativas = horasAdministrativas;
                     profesor.cursosVirtuales = cursosVirtuales;
+                    profesor.horasAsesoriasVirtuales = horasAsesoriasVirtuales;
+                    profesor.horasTrabajoEnCasa = horasTrabajoEnCasa;
+                    
+                    // Actualizar configuración de asesorías del profesor
+                    profesor.asesoriasNormalesConfig = {
+                        habilitado: habilitarAsesoriasNormalesProfesor,
+                        duracionMinutos: duracionAsesoriaNormalProfesor,
+                        vecesPorSemana: frecuenciaAsesoriaNormalProfesor
+                    };
+                    
+                    profesor.asesoriasEvaluacionConfig = {
+                        habilitado: habilitarAsesoriasEvaluacionProfesor,
+                        duracionMinutos: duracionAsesoriaEvaluacionProfesor,
+                        vecesPorSemana: frecuenciaAsesoriaEvaluacionProfesor
+                    };
                     
                     mostrarNotificacion('Éxito', 'Profesor actualizado correctamente.', 'success');
                 }
@@ -358,11 +439,30 @@
                     horasMaterialDidacticoSemanal: horasMaterialDidacticoSemanal,
                     horasCapacitacionSemestral: horasCapacitacionSemestral,
                     
+                    // Añadir configuración de asesorías
+                    asesoriasNormalesConfig: asesoriasNormalesConfig,
+                    asesoriasEvaluacionConfig: asesoriasEvaluacionConfig,
+                    
                     // Añadir nuevos campos
                     horasObjetivoSemanal: horasObjetivoSemanal,
                     tipoContrato: tipoContrato,
                     horasAdministrativas: horasAdministrativas,
-                    cursosVirtuales: cursosVirtuales
+                    cursosVirtuales: cursosVirtuales,
+                    horasAsesoriasVirtuales: horasAsesoriasVirtuales,
+                    horasTrabajoEnCasa: horasTrabajoEnCasa,
+                    
+                    // Añadir configuración de asesorías del profesor
+                    asesoriasNormalesConfig: {
+                        habilitado: habilitarAsesoriasNormalesProfesor,
+                        duracionMinutos: duracionAsesoriaNormalProfesor,
+                        vecesPorSemana: frecuenciaAsesoriaNormalProfesor
+                    },
+                    
+                    asesoriasEvaluacionConfig: {
+                        habilitado: habilitarAsesoriasEvaluacionProfesor,
+                        duracionMinutos: duracionAsesoriaEvaluacionProfesor,
+                        vecesPorSemana: frecuenciaAsesoriaEvaluacionProfesor
+                    }
                 });
                 mostrarNotificacion('Éxito', 'Profesor añadido correctamente.', 'success');
             }
