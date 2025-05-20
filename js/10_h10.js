@@ -89,6 +89,7 @@
                     restricciones: estado.restricciones,
                     horarios: estado.horarios,
                     horariosAsesorias: estado.horariosAsesorias || {},
+                    horariosBasicos: estado.horariosBasicos || {},
                     configuracion: estado.configuracion
                 }));
                  // console.log("Datos guardados localmente.");
@@ -109,6 +110,7 @@
                     estado.aulas = datos.aulas || [];
                     estado.restricciones = datos.restricciones || [];
                     estado.horarios = datos.horarios || {};
+                    estado.horariosBasicos = datos.horariosBasicos || {};
                     estado.horariosAsesorias = datos.horariosAsesorias || {};
                     // Fusionar configuración guardada con la por defecto, asegurando que existan las nuevas estructuras
                     const defaultConfig = {

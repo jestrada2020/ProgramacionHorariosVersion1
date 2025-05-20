@@ -6,6 +6,7 @@
             restricciones: [], // { tipo: 'horarioFijo', profesorId, materiaId, aulaId, semestre, dia, hora } o { tipo: 'evitarHuecos', peso } etc.
             horarios: {},   // { semestre: { dia: { hora: { materia, codigo, profesor, profesorId, aula, aulaId, fijado } } } }
             horariosAsesorias: {}, // { profesorId: { dia: { hora: { tipo: 'asesoria', duracion } } } } // Placeholder, no implementado visualmente aún
+            horariosBasicos: {}, // { semestre: { dia: { hora: { codigo, nombre, profesorId, profesor, aulaId, aula, fijado, semestre } } } }
             horariosVisualizacion: { // Estructuras precalculadas para diferentes vistas
                 porSemestre: {}, // Incluye clases regulares
                 porProfesor: {},
@@ -146,6 +147,21 @@
                     // Si se cambia a la pestaña de horarios, actualizar la vista
                     if (targetId === 'horarios') {
                          actualizarHorarioVisible(); // Actualiza ambas tablas (regular y asesorías)
+                    }
+                    // Si se cambia a la pestaña de horario básico, inicializar la vista
+                    if (targetId === 'horario-basico') {
+                        // Verificar si existe la función de inicialización del horario básico
+                        if (typeof actualizarSelectorHorarioBasico === 'function') {
+                            actualizarSelectorHorarioBasico();
+                            // Si existe la función para mostrar el horario básico, llamarla
+                            if (typeof mostrarHorarioBasico === 'function') {
+                                mostrarHorarioBasico();
+                            }
+                            // Si existe la función de configuración de eventos, llamarla
+                            if (typeof setupEventosHorarioBasico === 'function') {
+                                setupEventosHorarioBasico();
+                            }
+                        }
                     }
                     // Si se cambia a la pestaña de profesores, recalcular y renderizar resumen detallado
                     if (targetId === 'profesores') {

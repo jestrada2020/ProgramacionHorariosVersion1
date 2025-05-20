@@ -155,6 +155,11 @@
             actualizarSelectorTipoVista(); // Actualiza el selector de elementos y llama a actualizarHorarioVisible si es necesario
             actualizarSelectorSemestres(); // Actualiza selector en modal materia
             actualizarSelectoresHorariosFijos(); // Actualiza selectores en restricciones
+            
+            // Actualizar selector de horario básico si la función existe
+            if (typeof actualizarSelectorHorarioBasico === 'function') {
+                actualizarSelectorHorarioBasico();
+            }
         }
 
         // Actualizar estado de botones (Generar, Optimizar, Editar)

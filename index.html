@@ -8,6 +8,24 @@
         <!-- Tailwind CSS desde jsdelivr -->
         <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
         <link rel="stylesheet" href="style.css">
+        
+        <!-- Estilos personalizados para horario básico y continuaciones -->
+        <style>
+            .session-inner.continuacion {
+                background-color: rgba(219, 234, 254, 0.5); /* bg-blue-100 con transparencia */
+                border-top: 2px dashed #bfdbfe; /* border-blue-200 */
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                font-style: italic;
+            }
+            
+            /* Mejoras visuales para bloques fijados */
+            td.bg-yellow-50 .session-inner {
+                border-left: 3px solid #fcd34d; /* Marca amarilla para bloques fijados */
+            }
+        </style>
 
         <!-- SheetJS para procesar archivos Excel -->
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -70,6 +88,7 @@
                 <li><a href="#materias" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Materias</a></li>
                 <li><a href="#aulas" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Aulas</a></li>
                 <li><a href="#restricciones" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Restricciones</a></li>
+                <li><a href="#horario-basico" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Horario Básico</a></li>
                 <li><a href="#reporte-docente" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Generador de Carga</a></li>
                 <li><a href="#horarios" class="tab-link px-4 py-3 text-white hover:bg-blue-600 inline-block transition-colors">Horarios</a></li>
             </ul>
@@ -487,6 +506,53 @@
                             <li>No hay horarios fijos definidos.</li>
                         </ul>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña de Horario Básico -->
+        <div id="horario-basico" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">Horario Básico por Semestre</h2>
+                    <button id="generarHorarioBasicoBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors no-print">Generar Horario Básico</button>
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4 no-print">
+                    <p>Genere un horario inicial por semestre utilizando la información de materias y restricciones. Este horario servirá como base para la generación del horario completo.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 no-print">
+                    <div>
+                        <label for="semestreHorarioBasico" class="block text-gray-700 font-medium mb-2">Seleccione semestre:</label>
+                        <select id="semestreHorarioBasico" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <!-- Opciones generadas dinámicamente según configuración de semestres -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">Días habilitados:</label>
+                        <div id="diasHabilesHorarioBasico" class="text-gray-600 py-2 px-4 bg-gray-50 rounded-md border">
+                            <span class="text-gray-400">Seleccione un semestre</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">Materias en este semestre:</label>
+                        <div id="materiasHorarioBasico" class="text-gray-600 py-2 px-4 bg-gray-50 rounded-md border">
+                            <span class="text-gray-400">Seleccione un semestre</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="horarioBasicoContainer" class="bg-white border rounded-lg p-4">
+                    <div id="mensajeNoHorarioBasico" class="text-center py-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h3 class="text-xl font-medium text-gray-500">No hay horario básico generado</h3>
+                        <p class="text-gray-500 mt-2 mb-4">Seleccione un semestre y haga clic en "Generar Horario Básico" para comenzar</p>
+                    </div>
+                    <table id="tablaHorarioBasico" class="timetable w-full border-collapse hidden">
+                        <!-- El horario básico se generará dinámicamente -->
+                    </table>
                 </div>
             </div>
         </div>
@@ -1245,6 +1311,7 @@
     <script src="js/10_h10.js"></script>
     <script src="js/11_h11.js"></script>
     <script src="js/12_h12.js"></script>
+    <script src="js/13_h13.js"></script>
     <script src="js/reportes.js"></script>
     <script src="js/reporte-docente.js"></script>
     
